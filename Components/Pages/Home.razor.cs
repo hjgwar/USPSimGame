@@ -4,5 +4,5 @@ namespace USPSimGame.Components.Pages;
 
 public partial class Home
 {
-    private OpenStreetMap map;
+    private OpenStreetMap? map;
 }
