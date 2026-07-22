@@ -11,8 +11,17 @@ builder.Services.AddBlazorBootstrap();
 
 // Add Entity Framework Core & PostgreSQL
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+builder.Services.AddDbContextFactory<AppDbContext>(options =>
+    options.UseNpgsql(connectionString));
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(connectionString));
+
+// Register Application Services
+builder.Services.AddSingleton<USPSimGame.Services.IPasswordHasher, USPSimGame.Services.PasswordHasherService>();
+builder.Services.AddScoped<USPSimGame.Services.IAuthService, USPSimGame.Services.AuthService>();
+builder.Services.AddScoped<USPSimGame.Services.IGameSessionService, USPSimGame.Services.GameSessionService>();
+builder.Services.AddScoped<USPSimGame.Services.ITeamService, USPSimGame.Services.TeamService>();
+builder.Services.AddScoped<USPSimGame.Services.CreatorAuthState>();
 
 var app = builder.Build();
 

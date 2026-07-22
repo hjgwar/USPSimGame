@@ -21,5 +21,11 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<User>().HasData(
             new User { Id = 1, Username = "Admin", Email = "harald.warmelink@hu.nl", PasswordHash = "" }
         );
+
+        modelBuilder.Entity<Team>()
+            .HasOne<GameSession>()
+            .WithMany()
+            .HasForeignKey(t => t.GameSessionId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

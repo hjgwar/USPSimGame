@@ -1,0 +1,18 @@
+@page "/creator"
+@rendermode InteractiveServer
+
+<PageTitle>Game Sessions - Creator Dashboard</PageTitle>
+
+@if (!AuthState.IsAuthenticated)
+{
+    <div class="container py-4">
+        <LoginCard OnLoginSuccess="HandleLoginSuccess" />
+    </div>
+}
+else
+{
+    <CreatorHeader />
+    <div class="container pb-5">
+        <GameSessionsOverview CurrentUser="AuthState.CurrentUser!" OnLogout="HandleLogout" />
+    </div>
+}
