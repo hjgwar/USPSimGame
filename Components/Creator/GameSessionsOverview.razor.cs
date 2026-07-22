@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Components;
 using USPSimGame.Data.Entities;
+using USPSimGame.Data.Enums;
 using USPSimGame.Services;
 
 namespace USPSimGame.Components.Creator;
@@ -74,13 +75,4 @@ public partial class GameSessionsOverview : ComponentBase
             ErrorMessage = $"Error deleting game session: {ex.Message}";
         }
     }
-
-    protected string GetStateBadgeClass(string? state) => state?.ToLower() switch
-    {
-        "active" => "bg-success",
-        "setup" => "bg-info text-dark",
-        "paused" => "bg-warning text-dark",
-        "completed" => "bg-secondary",
-        _ => "bg-primary"
-    };
 }

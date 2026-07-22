@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using USPSimGame.Data;
 using USPSimGame.Data.Entities;
+using USPSimGame.Data.Enums;
 
 namespace USPSimGame.Services;
 
@@ -23,6 +24,7 @@ public class GameSessionService : IGameSessionService
     {
         await using var db = await _dbContextFactory.CreateDbContextAsync();
         session.CreatedAt = DateTime.UtcNow;
+        session.State = GameState.Setup;
         db.GameSessions.Add(session);
         await db.SaveChangesAsync();
         return session;

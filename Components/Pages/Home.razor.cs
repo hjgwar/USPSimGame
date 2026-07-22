@@ -1,8 +1,14 @@
-using OpenLayers.Blazor;
+using Microsoft.AspNetCore.Components;
+using USPSimGame.Data.Entities;
 
 namespace USPSimGame.Components.Pages;
 
-public partial class Home
+public partial class Home : ComponentBase
 {
-    private OpenStreetMap? map;
+    protected GameSession? SelectedSession { get; set; }
+
+    protected void HandleSessionSelected(GameSession session)
+    {
+        SelectedSession = session;
+    }
 }

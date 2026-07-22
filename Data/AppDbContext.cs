@@ -12,7 +12,7 @@ public class AppDbContext : DbContext
     public DbSet<User> Users => Set<User>();
     public DbSet<Team> Teams => Set<Team>();
     public DbSet<GameSession> GameSessions => Set<GameSession>();
-    public DbSet<UserSession> UserSessions => Set<UserSession>();
+    public DbSet<PlayerSession> PlayerSessions => Set<PlayerSession>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -27,5 +27,9 @@ public class AppDbContext : DbContext
             .WithMany()
             .HasForeignKey(t => t.GameSessionId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<GameSession>()
+            .Property(s => s.State)
+            .HasConversion<string>();
     }
 }

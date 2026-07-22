@@ -1,6 +1,6 @@
 namespace USPSimGame.Data.Entities;
 
-public class UserSession
+public class PlayerSession
 {
     public int Id { get; set; }
     public int TeamId { get; set; }

@@ -12,7 +12,7 @@ using USPSimGame.Data;
 namespace USPSimGame.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260722103528_Primary")]
+    [Migration("20260722123947_Primary")]
     partial class Primary
     {
         /// <inheritdoc />
@@ -62,6 +62,35 @@ namespace USPSimGame.Migrations
                     b.ToTable("GameSessions");
                 });
 
+            modelBuilder.Entity("USPSimGame.Data.Entities.PlayerSession", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("LastActive")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("TeamId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("UserName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("PlayerSessions");
+                });
+
             modelBuilder.Entity("USPSimGame.Data.Entities.Team", b =>
                 {
                     b.Property<int>("Id")
@@ -86,6 +115,8 @@ namespace USPSimGame.Migrations
                         .HasColumnType("text");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("GameSessionId");
 
                     b.ToTable("Teams");
                 });
@@ -124,33 +155,13 @@ namespace USPSimGame.Migrations
                         });
                 });
 
-            modelBuilder.Entity("USPSimGame.Data.Entities.UserSession", b =>
+            modelBuilder.Entity("USPSimGame.Data.Entities.Team", b =>
                 {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTime>("LastActive")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("TeamId")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("UserName")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("UserSessions");
+                    b.HasOne("USPSimGame.Data.Entities.GameSession", null)
+                        .WithMany()
+                        .HasForeignKey("GameSessionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 #pragma warning restore 612, 618
         }

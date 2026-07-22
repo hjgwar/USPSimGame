@@ -77,7 +77,7 @@
                                 <td>@session.StartYear</td>
                                 <td>Month @session.CurrentMonth</td>
                                 <td>
-                                    <span class="badge @GetStateBadgeClass(session.State)">
+                                    <span class="badge @session.State.GetBadgeClass()">
                                         @session.State
                                     </span>
                                 </td>

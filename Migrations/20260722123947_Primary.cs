@@ -32,19 +32,20 @@ namespace USPSimGame.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "Teams",
+                name: "PlayerSessions",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    GameSessionId = table.Column<int>(type: "integer", nullable: false),
-                    Name = table.Column<string>(type: "text", nullable: false),
-                    PasswordHash = table.Column<string>(type: "text", nullable: false),
-                    Color = table.Column<string>(type: "text", nullable: false)
+                    TeamId = table.Column<int>(type: "integer", nullable: false),
+                    UserName = table.Column<string>(type: "text", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    LastActive = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    IsActive = table.Column<bool>(type: "boolean", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Teams", x => x.Id);
+                    table.PrimaryKey("PK_PlayerSessions", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -63,33 +64,43 @@ namespace USPSimGame.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "UserSessions",
+                name: "Teams",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    TeamId = table.Column<int>(type: "integer", nullable: false),
-                    UserName = table.Column<string>(type: "text", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    LastActive = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    IsActive = table.Column<bool>(type: "boolean", nullable: false)
+                    GameSessionId = table.Column<int>(type: "integer", nullable: false),
+                    Name = table.Column<string>(type: "text", nullable: false),
+                    PasswordHash = table.Column<string>(type: "text", nullable: false),
+                    Color = table.Column<string>(type: "text", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_UserSessions", x => x.Id);
+                    table.PrimaryKey("PK_Teams", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Teams_GameSessions_GameSessionId",
+                        column: x => x.GameSessionId,
+                        principalTable: "GameSessions",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.InsertData(
                 table: "Users",
                 columns: new[] { "Id", "Email", "PasswordHash", "Username" },
                 values: new object[] { 1, "harald.warmelink@hu.nl", "", "Admin" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Teams_GameSessionId",
+                table: "Teams",
+                column: "GameSessionId");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "GameSessions");
+                name: "PlayerSessions");
 
             migrationBuilder.DropTable(
                 name: "Teams");
@@ -98,7 +109,7 @@ namespace USPSimGame.Migrations
                 name: "Users");
 
             migrationBuilder.DropTable(
-                name: "UserSessions");
+                name: "GameSessions");
         }
     }
 }

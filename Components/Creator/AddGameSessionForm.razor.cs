@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Components;
 using USPSimGame.Data.Entities;
+using USPSimGame.Data.Enums;
 using USPSimGame.Services;
 
 namespace USPSimGame.Components.Creator;
@@ -18,11 +19,7 @@ public partial class AddGameSessionForm : ComponentBase
     protected GameSession NewSession { get; set; } = new()
     {
         Name = "New Game Session",
-        CenterLatLong = "5.17516, 52.08640",
-        Zoom = 15,
-        StartYear = 2026,
-        CurrentMonth = 1,
-        State = "Setup"
+        CenterLatLong = "5.17516, 52.08640"
     };
 
     protected string? ErrorMessage { get; set; }
