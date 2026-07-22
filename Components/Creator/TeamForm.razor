@@ -1,0 +1,72 @@
+@namespace USPSimGame.Components.Creator
+
+<div class="team-form-card card shadow-sm mb-4">
+    <div class="card-header bg-light d-flex justify-content-between align-items-center py-3">
+        <h5 class="mb-0 text-primary">
+            <i class="bi @(IsEditMode ? "bi-pencil-square" : "bi-plus-circle") me-2"></i>
+            @(IsEditMode ? $"Edit Team: {EditingTeamName}" : "Create New Team")
+        </h5>
+        <button type="button" class="btn-close" @onclick="OnCancel"></button>
+    </div>
+    <div class="card-body p-4">
+        @if (!string.IsNullOrEmpty(ErrorMessage))
+        {
+            <div class="alert alert-danger" role="alert">
+                <i class="bi bi-exclamation-circle me-2"></i>@ErrorMessage
+            </div>
+        }
+
+        <EditForm Model="TeamModel" OnValidSubmit="HandleSubmit">
+            <DataAnnotationsValidator />
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label font-weight-bold">Team Name</label>
+                    <InputText class="form-control" @bind-Value="TeamModel.Name" placeholder="e.g. Red Dragons" required />
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label font-weight-bold">Team Color</label>
+                    <div class="input-group">
+                        <input type="color" class="form-control form-control-color color-picker-input" @bind="TeamModel.Color" title="Choose team color" />
+                        <InputText class="form-control" @bind-Value="TeamModel.Color" placeholder="#3b82f6" required />
+                        <span class="input-group-text color-preview-swatch" style="background-color: @TeamModel.Color;"></span>
+                    </div>
+                </div>
+
+                <div class="col-md-12">
+                    <label class="form-label font-weight-bold">
+                        Team Password @(IsEditMode ? "(Optional)" : "(Required)")
+                    </label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-key"></i></span>
+                        <input type="password" class="form-control" @bind="PlainPassword" 
+                               placeholder="@(IsEditMode ? "Leave blank to keep existing password" : "Enter password for team login")" 
+                               required="@(!IsEditMode)" />
+                    </div>
+                    @if (IsEditMode)
+                    {
+                        <small class="text-muted">Only fill this in if you want to change the team's password.</small>
+                    }
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2 mt-4">
+                <button type="button" class="btn btn-outline-secondary" @onclick="OnCancel" disabled="@IsSubmitting">
+                    Cancel
+                </button>
+                <button type="submit" class="btn btn-success" disabled="@IsSubmitting">
+                    @if (IsSubmitting)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                        <span>Saving...</span>
+                    }
+                    else
+                    {
+                        <span><i class="bi bi-check-circle me-1"></i>@(IsEditMode ? "Update Team" : "Save Team")</span>
+                    }
+                </button>
+            </div>
+        </EditForm>
+    </div>
+</div>

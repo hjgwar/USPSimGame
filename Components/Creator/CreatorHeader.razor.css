@@ -1,0 +1,36 @@
+.creator-header {
+    background-color: var(--app-bg-card);
+    border-bottom: 1px solid var(--app-border-color);
+}
+
+.brand-title {
+    font-size: 1.15rem;
+    letter-spacing: -0.2px;
+    color: var(--app-primary) !important;
+}
+
+.nav-creator .nav-link {
+    color: var(--app-text-muted);
+    font-weight: 500;
+    font-size: 0.95rem;
+    padding: 0.4rem 0.8rem;
+    border-radius: var(--app-radius-sm);
+    transition: all 0.15s ease-in-out;
+}
+
+.nav-creator .nav-link:hover {
+    color: var(--app-primary);
+    background-color: var(--app-bg-light);
+}
+
+.nav-creator .nav-link.active {
+    color: #ffffff;
+    background-color: var(--app-primary);
+}
+
+.user-badge {
+    font-size: 0.9rem;
+    padding: 0.45rem 0.75rem;
+    border-color: var(--app-border-color) !important;
+    background-color: var(--app-bg-light) !important;
+}

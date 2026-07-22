@@ -1,0 +1,17 @@
+.creator-overview-container {
+    padding: 1.5rem 0;
+}
+
+.empty-state-card {
+    border-radius: var(--app-radius-lg);
+    border: 2px dashed var(--app-border-color);
+    background-color: var(--app-bg-light);
+}
+
+.table th {
+    font-weight: 600;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--app-text-muted);
+}

@@ -1,12 +1,44 @@
+using Microsoft.EntityFrameworkCore;
 using USPSimGame.Components;
+using USPSimGame.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+builder.Services.AddBlazorBootstrap();
+
+// Add Entity Framework Core & PostgreSQL
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+builder.Services.AddDbContextFactory<AppDbContext>(options =>
+    options.UseNpgsql(connectionString));
+
+// Register Application Services
+builder.Services.AddSingleton<USPSimGame.Services.IPasswordHasher, USPSimGame.Services.PasswordHasherService>();
+builder.Services.AddScoped<USPSimGame.Services.IAuthService, USPSimGame.Services.AuthService>();
+builder.Services.AddScoped<USPSimGame.Services.IGameSessionService, USPSimGame.Services.GameSessionService>();
+builder.Services.AddScoped<USPSimGame.Services.ITeamService, USPSimGame.Services.TeamService>();
+builder.Services.AddScoped<USPSimGame.Services.IPlayerSessionService, USPSimGame.Services.PlayerSessionService>();
+builder.Services.AddScoped<USPSimGame.Services.CreatorAuthState>();
+builder.Services.AddScoped<USPSimGame.Services.PlayerSessionState>();
 
 var app = builder.Build();
+
+// Automatically apply EF Core database migrations at application startup
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    try
+    {
+        await dbContext.Database.MigrateAsync();
+    }
+    catch (Exception ex)
+    {
+        var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "An error occurred while migrating the database.");
+    }
+}
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())

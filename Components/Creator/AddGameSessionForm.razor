@@ -1,0 +1,56 @@
+@namespace USPSimGame.Components.Creator
+
+<div class="add-session-card card shadow-sm mb-4">
+    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+        <h5 class="mb-0 text-primary"><i class="bi bi-plus-circle me-2"></i>Create New Game Session</h5>
+        <button type="button" class="btn-close" @onclick="OnCancel"></button>
+    </div>
+    <div class="card-body">
+        @if (!string.IsNullOrEmpty(ErrorMessage))
+        {
+            <div class="alert alert-danger" role="alert">
+                <i class="bi bi-exclamation-circle me-2"></i>@ErrorMessage
+            </div>
+        }
+
+        <EditForm Model="NewSession" OnValidSubmit="HandleSubmit">
+            <DataAnnotationsValidator />
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label font-weight-bold">Session Name</label>
+                    <InputText class="form-control" @bind-Value="NewSession.Name" placeholder="e.g. Simulation Game #1" required />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label font-weight-bold">Center (Long, Lat)</label>
+                    <InputText class="form-control" @bind-Value="NewSession.CenterLatLong" placeholder="5.17516, 52.08640" required />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label font-weight-bold">Zoom Level</label>
+                    <InputNumber class="form-control" @bind-Value="NewSession.Zoom" min="1" max="20" required />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label font-weight-bold">Start Year</label>
+                    <InputNumber class="form-control" @bind-Value="NewSession.StartYear" required />
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2 mt-4">
+                <button type="button" class="btn btn-outline-secondary" @onclick="OnCancel" disabled="@IsSubmitting">
+                    Cancel
+                </button>
+                <button type="submit" class="btn btn-success" disabled="@IsSubmitting">
+                    @if (IsSubmitting)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                        <span>Saving...</span>
+                    }
+                    else
+                    {
+                        <span><i class="bi bi-check-circle me-1"></i>Create Session</span>
+                    }
+                </button>
+            </div>
+        </EditForm>
+    </div>
+</div>

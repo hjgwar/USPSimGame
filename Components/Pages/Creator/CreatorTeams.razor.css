@@ -1,0 +1,10 @@
+.teams-placeholder-card {
+    border-radius: var(--app-radius-lg);
+    border: 1px solid var(--app-border-color);
+    background-color: var(--app-bg-card);
+    box-shadow: var(--app-shadow-sm);
+}
+
+.max-w-600 {
+    max-width: 600px;
+}

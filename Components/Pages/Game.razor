@@ -1,0 +1,21 @@
+@page "/game"
+@rendermode InteractiveServer
+
+<PageTitle>Game - @(PlayerSessionState.CurrentGameSession?.Name ?? "Simulation")</PageTitle>
+
+@if (!PlayerSessionState.IsConnected)
+{
+    <div class="text-center py-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Checking session...</span>
+        </div>
+        <p class="text-muted mt-2">Verifying game connection...</p>
+    </div>
+}
+else
+{
+    <GameOverlay />
+
+    <OpenStreetMap Style="height:100vh;" @ref="map" Zoom="@(PlayerSessionState.CurrentGameSession?.Zoom ?? 15)" Center="new Coordinate(5.17516, 52.08640)">
+    </OpenStreetMap>
+}

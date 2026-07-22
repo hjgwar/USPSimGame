@@ -1,0 +1,35 @@
+.teams-overview-container {
+    padding: 1rem 0;
+}
+
+.session-selector-card {
+    border-radius: var(--app-radius-md);
+    background-color: var(--app-bg-card);
+    border: 1px solid var(--app-border-color);
+}
+
+.max-w-500 {
+    max-width: 500px;
+}
+
+.empty-state-card {
+    border-radius: var(--app-radius-lg);
+    border: 2px dashed var(--app-border-color);
+    background-color: var(--app-bg-light);
+}
+
+.team-color-swatch {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 2px solid #ffffff;
+    display: inline-block;
+}
+
+.table th {
+    font-weight: 600;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--app-text-muted);
+}

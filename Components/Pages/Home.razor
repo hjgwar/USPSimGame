@@ -1,7 +1,18 @@
-﻿@page "/"
+@page "/"
+@rendermode InteractiveServer
 
-<PageTitle>Home</PageTitle>
+<PageTitle>USPSimGame - Select Session & Connect</PageTitle>
 
-<h1>Hello, world!</h1>
+<div class="home-container py-5">
+    <div class="text-center mb-5">
+        <h1 class="display-4 fw-bold text-primary mb-2">USPSimGame</h1>
+        <p class="lead text-secondary">Urban Simulation & Planning Game Portal</p>
+    </div>
 
-Welcome to your new app.
+    <GameSessionSelector SelectedSessionId="@(SelectedSession?.Id ?? 0)" OnSessionSelected="HandleSessionSelected" />
+
+    @if (SelectedSession != null)
+    {
+        <TeamConnectCard SelectedSession="SelectedSession" />
+    }
+</div>
