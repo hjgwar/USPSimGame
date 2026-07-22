@@ -1,7 +1,9 @@
-﻿@page "/"
+@page "/"
+@rendermode InteractiveServer
+
 
 <PageTitle>Home</PageTitle>
 
-<h1>Hello, world!</h1>
-
-Welcome to your new app.
+<OpenStreetMap Style="height:100vh;" @ref="map" Zoom="15" Center="new Coordinate(5.17516, 52.08640)">
+    
+</OpenStreetMap>
