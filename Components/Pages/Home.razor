@@ -1,12 +1,11 @@
 @page "/"
 @rendermode InteractiveServer
 
-<PageTitle>USPSimGame - Select Session & Connect</PageTitle>
+<PageTitle>Common Ground - Select Session & Connect</PageTitle>
 
 <div class="home-container py-5">
     <div class="text-center mb-5">
-        <h1 class="display-4 fw-bold text-primary mb-2">USPSimGame</h1>
-        <p class="lead text-secondary">Urban Simulation & Planning Game Portal</p>
+        <h1 class="display-4 fw-bold text-primary mb-2">Common Ground</h1>
     </div>
 
     <GameSessionSelector SelectedSessionId="@(SelectedSession?.Id ?? 0)" OnSessionSelected="HandleSessionSelected" />

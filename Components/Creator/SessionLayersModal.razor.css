@@ -1,0 +1,24 @@
+.modal-backdrop-custom {
+    background-color: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
+}
+
+.action-btn-small {
+    font-size: 0.75rem;
+}
+
+.action-btn-save {
+    font-size: 0.8rem;
+}
+
+.action-btn-reset {
+    font-size: 0.775rem;
+}
+
+.tag-label-micro {
+    font-size: 0.7rem;
+}
+
+.payload-info-text {
+    font-size: 0.75rem;
+}

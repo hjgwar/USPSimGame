@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Components;
 using USPSimGame.Data.Entities;
-using USPSimGame.Data.Enums;
 using USPSimGame.Services;
 
 namespace USPSimGame.Components.Creator;
@@ -20,6 +19,11 @@ public partial class GameSessionsOverview : ComponentBase
     protected bool IsLoading { get; set; } = true;
     protected bool ShowAddForm { get; set; }
     protected string? ErrorMessage { get; set; }
+
+    // Subcomponent Modal State
+    protected bool ShowLayersModal { get; set; } = false;
+    protected bool ShowTeamsModal { get; set; } = false;
+    protected GameSession? SelectedSession { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
@@ -74,5 +78,30 @@ public partial class GameSessionsOverview : ComponentBase
         {
             ErrorMessage = $"Error deleting game session: {ex.Message}";
         }
+    }
+
+    // Modal Trigger Handlers
+    protected void OpenSessionLayersModal(GameSession session)
+    {
+        SelectedSession = session;
+        ShowLayersModal = true;
+    }
+
+    protected void CloseSessionLayersModal()
+    {
+        ShowLayersModal = false;
+        SelectedSession = null;
+    }
+
+    protected void OpenSessionTeamsModal(GameSession session)
+    {
+        SelectedSession = session;
+        ShowTeamsModal = true;
+    }
+
+    protected void CloseSessionTeamsModal()
+    {
+        ShowTeamsModal = false;
+        SelectedSession = null;
     }
 }
