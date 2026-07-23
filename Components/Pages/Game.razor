@@ -1,4 +1,5 @@
 @page "/game"
+@using USPSimGame.Components.Game
 @rendermode InteractiveServer
 
 <PageTitle>Game - @(PlayerSessionState.CurrentGameSession?.Name ?? "Simulation")</PageTitle>
@@ -15,7 +16,8 @@
 else
 {
     <GameOverlay />
+    <MapControlPanel GameSessionId="@(PlayerSessionState.CurrentGameSession?.Id ?? 0)" />
 
-    <OpenStreetMap Style="height:100vh;" @ref="map" Zoom="@(PlayerSessionState.CurrentGameSession?.Zoom ?? 15)" Center="new Coordinate(5.17516, 52.08640)">
+    <OpenStreetMap Style="height:100vh;" @ref="map" Zoom="@(PlayerSessionState.CurrentGameSession?.Zoom ?? 15)" Center="@MapCenter" ConfigureJsMethod="uspsim2d5.configureMap">
     </OpenStreetMap>
 }

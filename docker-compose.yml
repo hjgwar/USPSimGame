@@ -27,6 +27,7 @@ services:
       - "5261:5261"
     environment:
       - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=uspsimgame_db;Username=postgres;Password=postgres
+      - ASPNETCORE_ENVIRONMENT=Development
     depends_on:
       db:
         condition: service_healthy

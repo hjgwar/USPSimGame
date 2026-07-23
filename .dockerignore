@@ -5,5 +5,10 @@
 **/bin
 **/obj
 **/out
+scratch/
+*.zip
+*.shp
+*.dbf
+*.shx
 Dockerfile*
 .dockerignore

@@ -1,0 +1,143 @@
+@namespace USPSimGame.Components.Creator
+@using USPSimGame.Data.Entities
+
+<div class="modal fade show d-block modal-backdrop-custom" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content rounded-4 border-0 shadow-lg">
+            <div class="modal-header border-bottom pb-3">
+                <div>
+                    <h5 class="modal-title fw-bold text-dark">
+                        <i class="bi bi-layers-half text-primary me-2"></i>Session Map Layers & Tag Overrides
+                    </h5>
+                    <small class="text-muted">Session #@Session.Id - <strong>@Session.Name</strong></small>
+                </div>
+                <button type="button" class="btn-close" @onclick="CloseAsync"></button>
+            </div>
+            <div class="modal-body p-4">
+                <!-- Add Optional Catalog Layer Section -->
+                <div class="card border-0 bg-primary-subtle p-3 rounded-3 mb-4">
+                    <h6 class="fw-bold text-primary mb-2">
+                        <i class="bi bi-plus-circle me-1"></i>Attach Optional Catalog Layer to Session
+                    </h6>
+                    <div class="row g-2 align-items-center">
+                        <div class="col-12 col-md-8">
+                            <select class="form-select form-select-sm" @bind="SelectedCatalogLayerId">
+                                <option value="0">-- Select Catalog Layer to Attach --</option>
+                                @foreach (var def in AvailableCatalogDefinitions.Where(d => !SessionLayers.Any(l => l.MapLayerDefinitionId == d.Id)))
+                                {
+                                    <option value="@def.Id">@def.Name (@def.Category)</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <button class="btn btn-sm btn-primary w-100" disabled="@(SelectedCatalogLayerId == 0 || IsAttachingLayer)" @onclick="AttachCatalogLayerAsync">
+                                @if (IsAttachingLayer)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                                    <span>Pre-caching Data...</span>
+                                }
+                                else
+                                {
+                                    <i class="bi bi-cloud-download me-1"></i><span>Attach & Pre-cache</span>
+                                }
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <h6 class="fw-bold text-dark mb-3">
+                    <i class="bi bi-hdd-stack me-1"></i>Active Pre-cached Session Layers
+                </h6>
+
+                @if (IsLoading)
+                {
+                    <div class="text-center py-4">
+                        <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                        <span class="ms-2 text-muted">Loading session layers...</span>
+                    </div>
+                }
+                else if (SessionLayers == null || !SessionLayers.Any())
+                {
+                    <div class="alert alert-warning border-0 rounded-3">
+                        <i class="bi bi-exclamation-circle me-2"></i>No layers currently attached to this session. Use the dropdown above to attach layers.
+                    </div>
+                }
+                else
+                {
+                    <div class="d-flex flex-column gap-3">
+                        @foreach (var layer in SessionLayers)
+                        {
+                            bool isCustom = (layer.TranslatorTags != layer.LayerDefinition.TranslatorTags || layer.SimulatorTags != layer.LayerDefinition.SimulatorTags);
+
+                            <div class="card border rounded-3 p-3 bg-light">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <div>
+                                        <span class="badge bg-secondary-subtle text-secondary fw-semibold mb-1 me-1">
+                                            @layer.LayerDefinition.Category
+                                        </span>
+                                        <h6 class="fw-bold text-dark mb-0">@layer.LayerDefinition.Name</h6>
+                                        <small class="text-muted"><code>@layer.LayerDefinition.Key</code></small>
+                                    </div>
+
+                                    <div class="d-flex align-items-center gap-2">
+                                        @if (isCustom)
+                                        {
+                                            <span class="badge bg-warning-subtle text-dark border border-warning-subtle px-2 py-1">
+                                                <i class="bi bi-pencil-fill me-1"></i>Session Override Active
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                                                <i class="bi bi-link-45deg me-1"></i>Inheriting Catalog Defaults
+                                            </span>
+                                        }
+                                        <button class="btn btn-sm btn-outline-danger p-0 px-2 action-btn-small" title="Remove layer from session" @onclick="() => RemoveSessionLayerAsync(layer.Id)">
+                                            <i class="bi bi-x-lg"></i>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="row g-2 mb-2">
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label text-uppercase fw-bold text-muted small mb-1 tag-label-micro">
+                                            <i class="bi bi-translate text-primary me-1"></i>Session Translator Tags
+                                        </label>
+                                        <input type="text" class="form-control form-control-sm font-monospace" @bind="layer.TranslatorTags" placeholder="e.g. custom_extrusion, height_map" />
+                                    </div>
+                                    <div class="col-12 col-md-6">
+                                        <label class="form-label text-uppercase fw-bold text-muted small mb-1 tag-label-micro">
+                                            <i class="bi bi-cpu text-success me-1"></i>Session Simulator Tags
+                                        </label>
+                                        <input type="text" class="form-control form-control-sm font-monospace" @bind="layer.SimulatorTags" placeholder="e.g. grid_load, custom_sim" />
+                                    </div>
+                                </div>
+
+                                <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+                                    <small class="text-muted payload-info-text">
+                                        <i class="bi bi-hdd me-1"></i>Cached Payload: @(string.IsNullOrEmpty(layer.CachedDataContent) ? "0 bytes" : $"{layer.CachedDataContent.Length / 1024} KB")
+                                    </small>
+
+                                    <div class="d-flex gap-2">
+                                        @if (isCustom)
+                                        {
+                                            <button type="button" class="btn btn-sm btn-link text-secondary p-0 text-decoration-none action-btn-reset" @onclick="() => ResetSessionLayerTagsAsync(layer.Id)">
+                                                <i class="bi bi-arrow-counterclockwise me-1"></i>Reset to Catalog Defaults
+                                            </button>
+                                        }
+                                        <button type="button" class="btn btn-sm btn-primary py-0 px-2 action-btn-save" @onclick="() => SaveSessionLayerTagsAsync(layer)">
+                                            <i class="bi bi-check-lg me-1"></i>Save Session Tags
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+            <div class="modal-footer border-top pt-3">
+                <button type="button" class="btn btn-secondary rounded-pill px-4" @onclick="CloseAsync">Close</button>
+            </div>
+        </div>
+    </div>
+</div>

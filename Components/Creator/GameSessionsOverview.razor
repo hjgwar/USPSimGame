@@ -1,10 +1,11 @@
 @namespace USPSimGame.Components.Creator
+@using USPSimGame.Data.Entities
 
 <div class="creator-overview-container">
     <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <div>
             <h2 class="mb-1 text-dark"><i class="bi bi-controller me-2"></i>Game Sessions Overview</h2>
-            <p class="text-muted mb-0">Manage active game sessions and configurations.</p>
+            <p class="text-muted mb-0">Manage active game sessions, pre-cached layers, simulator tags, and team credentials.</p>
         </div>
         <div>
             <button class="btn btn-primary" @onclick="ToggleAddForm">
@@ -58,9 +59,8 @@
                             <th>#</th>
                             <th>Name</th>
                             <th>Center (Long, Lat)</th>
-                            <th>Zoom</th>
-                            <th>Start Year</th>
-                            <th>Current Month</th>
+                            <th>Map Layers</th>
+                            <th>Teams</th>
                             <th>State</th>
                             <th>Created At</th>
                             <th class="text-end">Actions</th>
@@ -73,9 +73,16 @@
                                 <td><span class="badge bg-secondary">@session.Id</span></td>
                                 <td><strong class="text-dark">@session.Name</strong></td>
                                 <td><code>@session.CenterLatLong</code></td>
-                                <td>@session.Zoom</td>
-                                <td>@session.StartYear</td>
-                                <td>Month @session.CurrentMonth</td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary rounded-pill px-3 py-1 text-nowrap" @onclick="() => OpenSessionLayersModal(session)" title="Configure layers and simulator tags">
+                                        <i class="bi bi-layers-fill me-1"></i>@session.MapLayers.Count Layer(s)
+                                    </button>
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 py-1 text-nowrap" @onclick="() => OpenSessionTeamsModal(session)" title="Manage team accounts and credentials">
+                                        <i class="bi bi-people-fill me-1"></i>@session.Teams.Count Team(s)
+                                    </button>
+                                </td>
                                 <td>
                                     <span class="badge @session.State.GetBadgeClass()">
                                         @session.State
@@ -83,7 +90,7 @@
                                 </td>
                                 <td><small class="text-muted">@session.CreatedAt.ToString("g")</small></td>
                                 <td class="text-end">
-                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteSession(session.Id)" title="Delete session">
+                                    <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteSession(session.Id)" title="Delete game session">
                                         <i class="bi bi-trash me-1"></i>Delete
                                     </button>
                                 </td>
@@ -95,3 +102,13 @@
         </div>
     }
 </div>
+
+@if (ShowLayersModal && SelectedSession != null)
+{
+    <SessionLayersModal Session="SelectedSession" OnClose="CloseSessionLayersModal" OnUpdated="LoadSessionsAsync" />
+}
+
+@if (ShowTeamsModal && SelectedSession != null)
+{
+    <SessionTeamsModal Session="SelectedSession" OnClose="CloseSessionTeamsModal" OnUpdated="LoadSessionsAsync" />
+}
