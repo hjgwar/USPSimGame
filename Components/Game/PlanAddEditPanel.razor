@@ -1,13 +1,13 @@
 @namespace USPSimGame.Components.Game
 @using USPSimGame.Data.Entities
 
-<div class="new-plan-panel-container position-fixed bottom-0 end-0 m-3 z-3">
-    <div class="card border-0 shadow-lg rounded-4 overflow-hidden new-plan-card" style="width: 380px; max-width: calc(100vw - 32px);">
+<div class="plan-add-edit-panel-container position-fixed bottom-0 end-0 m-3 z-3">
+    <div class="card border-0 shadow-lg rounded-4 overflow-hidden plan-add-edit-card" style="width: 380px; max-width: calc(100vw - 32px);">
         <!-- Header -->
-        <div class="card-header bg-success text-white p-3 d-flex align-items-center justify-content-between">
+        <div class="card-header @(IsEditMode ? "bg-primary" : "bg-success") text-white p-3 d-flex align-items-center justify-content-between">
             <div class="d-flex align-items-center gap-2">
-                <i class="bi bi-pencil-square h5 mb-0"></i>
-                <h6 class="fw-bold mb-0">Develop Spatial Plan</h6>
+                <i class="bi @(IsEditMode ? "bi-pencil-fill" : "bi-plus-circle-fill") h5 mb-0"></i>
+                <h6 class="fw-bold mb-0">@(IsEditMode ? $"Edit Spatial Plan #{PlanToEdit!.Id}" : "Develop Spatial Plan")</h6>
             </div>
             <button class="btn-close btn-close-white" @onclick="CancelAsync"></button>
         </div>
@@ -23,7 +23,7 @@
             @if (IsLoading)
             {
                 <div class="text-center py-4">
-                    <div class="spinner-border spinner-border-sm text-success" role="status"></div>
+                    <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
                     <span class="ms-2 text-muted small">Loading plannable layers...</span>
                 </div>
             }
@@ -117,10 +117,10 @@
                                 </small>
                                 <div class="d-flex gap-2">
                                     <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 rounded-pill undo-redo-btn" @onclick="UndoPointAsync" title="Undo last drawn point">
-                                        <i class="bi bi-arrow-counterclockwise me-1 text-primary"></i>Undo Point
+                                        <i class="bi bi-arrow-counterclockwise me-1 text-primary"></i>Undo
                                     </button>
                                     <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 rounded-pill undo-redo-btn" @onclick="RedoPointAsync" title="Redo last point">
-                                        <i class="bi bi-arrow-clockwise me-1 text-primary"></i>Redo Point
+                                        <i class="bi bi-arrow-clockwise me-1 text-primary"></i>Redo
                                     </button>
                                 </div>
                             </div>
@@ -175,7 +175,7 @@
 
                     <div class="alert alert-info border-0 rounded-3 small p-2 mb-0 d-flex align-items-center gap-2">
                         <i class="bi bi-info-circle-fill text-info h6 mb-0"></i>
-                        <span class="micro-text">Click directly on the map to draw shape geometry. Switch layers anytime to build multi-layer plans.</span>
+                        <span class="micro-text">Click directly on the map to draw shape geometry. Drag any vertex to edit shapes.</span>
                     </div>
                 </div>
             }
@@ -185,7 +185,7 @@
             <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" @onclick="CancelAsync" disabled="@IsSaving">
                 Cancel
             </button>
-            <button type="button" class="btn btn-sm btn-success rounded-pill px-4" @onclick="SavePlanAsync" disabled="@(IsSaving || !SessionPlannableLayers.Any())">
+            <button type="button" class="btn btn-sm @(IsEditMode ? "btn-primary" : "btn-success") rounded-pill px-4" @onclick="SavePlanAsync" disabled="@(IsSaving || !SessionPlannableLayers.Any())">
                 @if (IsSaving)
                 {
                     <span class="spinner-border spinner-border-sm me-1" role="status"></span>
@@ -193,7 +193,7 @@
                 }
                 else
                 {
-                    <span><i class="bi bi-check-circle me-1"></i>Save Spatial Plan</span>
+                    <span><i class="bi @(IsEditMode ? "bi-check2-circle" : "bi-check-circle") me-1"></i>@(IsEditMode ? "Save Plan Edits" : "Save Spatial Plan")</span>
                 }
             </button>
         </div>

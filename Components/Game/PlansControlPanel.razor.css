@@ -11,10 +11,20 @@
     background: rgba(255, 255, 255, 0.94);
     backdrop-filter: blur(16px);
     border: 1px solid rgba(255, 255, 255, 0.6) !important;
+    width: 400px;
+    max-height: 330px;
 }
 
 .panel-content-body {
     max-height: calc(100vh - 430px);
+}
+
+.state-group-header {
+    transition: background-color 0.15s ease;
+}
+
+.state-group-header:hover {
+    background-color: #e2e8f0 !important;
 }
 
 .plan-item-card {

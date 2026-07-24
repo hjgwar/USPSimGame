@@ -6,6 +6,10 @@
     box-shadow: var(--app-shadow-md) !important;
 }
 
+.lefthandside {
+    width: 400px;
+}
+
 .extra-small {
     font-size: 0.7rem;
     letter-spacing: 0.5px;

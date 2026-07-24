@@ -30,25 +30,37 @@ public partial class Game : ComponentBase
     [Inject]
     public ILogger<Game> Logger { get; set; } = default!;
 
-    protected OpenStreetMap? map;
     protected PlansControlPanel? plansControlPanel;
 
-    protected bool ShowNewPlanPanel { get; set; } = false;
+    protected bool ShowPlanAddEditPanel { get; set; } = false;
+    protected Plan? PlanToEdit { get; set; }
     protected Plan? ActivePlan { get; set; }
+    protected string? LockErrorMessage { get; set; }
 
-    protected Coordinate MapCenter
+    private Coordinate? _initialCenter;
+    private double? _initialZoom;
+
+    protected Coordinate InitialCenter
     {
         get
         {
-            var session = PlayerSessionState.CurrentGameSession;
-            if (session != null && USPSimGame.Utils.GeoCoordinateConverter.TryParseLatLong(session.CenterLatLong, out double lat, out double lon))
+            if (_initialCenter == null)
             {
-                return new Coordinate(lon, lat);
+                var session = PlayerSessionState.CurrentGameSession;
+                if (session != null && USPSimGame.Utils.GeoCoordinateConverter.TryParseLatLong(session.CenterLatLong, out double lat, out double lon))
+                {
+                    _initialCenter = new Coordinate(lon, lat);
+                }
+                else
+                {
+                    _initialCenter = new Coordinate(5.17516, 52.08640);
+                }
             }
-
-            return new Coordinate(5.17516, 52.08640);
+            return _initialCenter ?? new Coordinate(5.17516, 52.08640);
         }
     }
+
+    protected double InitialZoom => _initialZoom ??= (PlayerSessionState.CurrentGameSession?.Zoom ?? 15);
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -101,30 +113,66 @@ public partial class Game : ComponentBase
 
     protected void OpenNewPlanPanel()
     {
+        LockErrorMessage = null;
         ActivePlan = null;
-        ShowNewPlanPanel = true;
+        PlanToEdit = null;
+        ShowPlanAddEditPanel = true;
         _ = ClearPlanHighlightAsync();
     }
 
-    protected async Task CloseNewPlanPanelAsync()
+    protected async Task HandleEditPlanAsync(Plan plan)
     {
-        ShowNewPlanPanel = false;
+        LockErrorMessage = null;
+        int currentSessionId = PlayerSessionState.CurrentPlayerSession?.Id ?? 0;
+
+        var (success, errorMsg) = await PlanService.TryLockPlanAsync(plan.Id, currentSessionId);
+        if (success)
+        {
+            ActivePlan = null;
+            PlanToEdit = plan;
+            ShowPlanAddEditPanel = true;
+            await ClearPlanHighlightAsync();
+        }
+        else
+        {
+            LockErrorMessage = errorMsg;
+        }
+    }
+
+    protected async Task ClosePlanAddEditPanelAsync()
+    {
+        if (PlanToEdit != null)
+        {
+            await PlanService.UnlockPlanAsync(PlanToEdit.Id);
+        }
+
+        ShowPlanAddEditPanel = false;
+        PlanToEdit = null;
         await StopDrawingAsync();
     }
 
-    protected async Task HandlePlanSavedAsync()
+    protected async Task HandlePlanSavedAsync(Plan savedPlan)
     {
-        ShowNewPlanPanel = false;
+        ShowPlanAddEditPanel = false;
+        PlanToEdit = null;
         await StopDrawingAsync();
         if (plansControlPanel != null)
         {
             await plansControlPanel.RefreshPlansAsync();
         }
+
+        await HandlePlanSelectedAsync(savedPlan);
     }
 
     protected async Task HandlePlanSelectedAsync(Plan? plan)
     {
-        ShowNewPlanPanel = false;
+        if (ShowPlanAddEditPanel && PlanToEdit != null)
+        {
+            await PlanService.UnlockPlanAsync(PlanToEdit.Id);
+        }
+
+        ShowPlanAddEditPanel = false;
+        PlanToEdit = null;
         await StopDrawingAsync();
         ActivePlan = plan;
 

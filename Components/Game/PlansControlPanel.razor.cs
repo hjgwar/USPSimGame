@@ -16,6 +16,9 @@ public partial class PlansControlPanel : ComponentBase, IDisposable
     public int StartYear { get; set; } = 2026;
 
     [Parameter]
+    public int CurrentTeamId { get; set; }
+
+    [Parameter]
     public Plan? ActivePlan { get; set; }
 
     [Parameter]
@@ -28,13 +31,29 @@ public partial class PlansControlPanel : ComponentBase, IDisposable
     protected bool IsLoading { get; set; } = true;
     protected bool IsCollapsed { get; set; } = false;
 
+    protected Dictionary<PlanState, bool> ExpandedStateGroups { get; set; } = new();
+
     protected override async Task OnInitializedAsync()
     {
+        foreach (PlanState state in Enum.GetValues<PlanState>())
+        {
+            ExpandedStateGroups[state] = true;
+        }
+
         PlanService.OnPlanCreated += HandlePlanCreatedAsync;
+        PlanService.OnPlanLockChanged += HandlePlanLockChangedAsync;
         await LoadPlansAsync();
     }
 
     private async Task HandlePlanCreatedAsync(int sessionId, Plan plan)
+    {
+        if (sessionId == GameSessionId)
+        {
+            await RefreshPlansAsync();
+        }
+    }
+
+    private async Task HandlePlanLockChangedAsync(int sessionId)
     {
         if (sessionId == GameSessionId)
         {
@@ -53,7 +72,7 @@ public partial class PlansControlPanel : ComponentBase, IDisposable
         IsLoading = true;
         try
         {
-            Plans = await PlanService.GetSessionPlansAsync(GameSessionId);
+            Plans = await PlanService.GetSessionPlansAsync(GameSessionId, CurrentTeamId);
         }
         catch (Exception ex)
         {
@@ -68,6 +87,23 @@ public partial class PlansControlPanel : ComponentBase, IDisposable
     protected void ToggleCollapse()
     {
         IsCollapsed = !IsCollapsed;
+    }
+
+    protected void ToggleStateGroup(PlanState state)
+    {
+        if (ExpandedStateGroups.ContainsKey(state))
+        {
+            ExpandedStateGroups[state] = !ExpandedStateGroups[state];
+        }
+        else
+        {
+            ExpandedStateGroups[state] = false;
+        }
+    }
+
+    protected bool IsStateExpanded(PlanState state)
+    {
+        return !ExpandedStateGroups.TryGetValue(state, out bool expanded) || expanded;
     }
 
     protected async Task SelectPlanAsync(Plan plan)
@@ -89,28 +125,12 @@ public partial class PlansControlPanel : ComponentBase, IDisposable
 
     protected string FormatMonthYear(int startMonth)
     {
-        int totalMonths = (StartYear * 12) + startMonth;
-        int year = totalMonths / 12;
-        int month = (totalMonths % 12) + 1;
-        DateTime dt = new DateTime(year, month, 1);
-        return $"{dt:MMM yyyy} (Month {startMonth})";
-    }
-
-    protected string GetStateBadgeClass(PlanState state)
-    {
-        return state switch
-        {
-            PlanState.Draft => "bg-secondary-subtle text-secondary border-secondary-subtle",
-            PlanState.Requested => "bg-info-subtle text-info border-info-subtle",
-            PlanState.Approved => "bg-primary-subtle text-primary border-primary-subtle",
-            PlanState.Implemented => "bg-success-subtle text-success border-success-subtle",
-            PlanState.Archived => "bg-dark-subtle text-muted border-dark-subtle",
-            _ => "bg-light text-dark"
-        };
+        return USPSimGame.Utils.CommonGameUtils.FormatMonthYear(startMonth, StartYear);
     }
 
     public void Dispose()
     {
         PlanService.OnPlanCreated -= HandlePlanCreatedAsync;
+        PlanService.OnPlanLockChanged -= HandlePlanLockChangedAsync;
     }
 }

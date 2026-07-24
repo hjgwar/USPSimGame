@@ -621,6 +621,30 @@ window.uspsim2d5 = {
         return null;
     },
 
+    loadDraftFeatureGeometry: function (layerId, geoJsonString) {
+        const map = window.activeOlMap;
+        if (!map || !geoJsonString || !window._draftVectorLayers || !window._draftVectorLayers[layerId]) return;
+
+        try {
+            const geojsonFormat = new ol.format.GeoJSON();
+            const features = geojsonFormat.readFeatures(geoJsonString, {
+                dataProjection: 'EPSG:4326',
+                featureProjection: map.getView().getProjection()
+            });
+
+            const draftObj = window._draftVectorLayers[layerId];
+            draftObj.source.clear();
+            draftObj.source.addFeatures(features);
+            features.forEach(function (f) {
+                draftObj.undoStack.push(f);
+            });
+            map.render();
+            console.log('[uspsim2d5] Loaded existing draft feature geometry into layer', layerId);
+        } catch (err) {
+            console.error('[uspsim2d5] Error loading draft feature geometry:', err);
+        }
+    },
+
     renderPlanFeatures: function (featuresPayloadList, fallbackColor) {
         this.clearPlanHighlight();
         const map = window.activeOlMap;

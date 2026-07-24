@@ -13,7 +13,7 @@ public class DraftFeatureItem
     public string? GeoJsonGeometry { get; set; }
 }
 
-public partial class NewPlanPanel : ComponentBase
+public partial class PlanAddEditPanel : ComponentBase
 {
     [Inject]
     public IPlanService PlanService { get; set; } = default!;
@@ -31,10 +31,16 @@ public partial class NewPlanPanel : ComponentBase
     public int TeamId { get; set; }
 
     [Parameter]
+    public int CurrentPlayerSessionId { get; set; }
+
+    [Parameter]
     public int StartYear { get; set; } = 2026;
 
     [Parameter]
-    public EventCallback OnSaved { get; set; }
+    public Plan? PlanToEdit { get; set; }
+
+    [Parameter]
+    public EventCallback<Plan> OnSaved { get; set; }
 
     [Parameter]
     public EventCallback OnCancel { get; set; }
@@ -57,9 +63,22 @@ public partial class NewPlanPanel : ComponentBase
 
     private bool _needsInitialDrawingActivation = false;
 
+    protected bool IsEditMode => PlanToEdit != null;
+
     protected override async Task OnInitializedAsync()
     {
         SelectedYear = StartYear;
+
+        if (PlanToEdit != null)
+        {
+            PlanName = PlanToEdit.Name;
+            Description = PlanToEdit.Description ?? string.Empty;
+
+            int totalMonths = (StartYear * 12) + PlanToEdit.StartMonth;
+            SelectedYear = totalMonths / 12;
+            SelectedMonth = (totalMonths % 12) + 1;
+        }
+
         await LoadPlannableLayersAsync();
     }
 
@@ -69,11 +88,38 @@ public partial class NewPlanPanel : ComponentBase
         try
         {
             SessionPlannableLayers = await MapLayerService.GetSessionPlannableLayersAsync(GameSessionId);
-            SelectedPlannableLayerId = 0;
+
+            if (PlanToEdit != null && PlanToEdit.Features.Any())
+            {
+                foreach (var feat in PlanToEdit.Features)
+                {
+                    var layer = SessionPlannableLayers.FirstOrDefault(l => l.Id == feat.GameSessionPlannableLayerId);
+                    if (layer != null && !string.IsNullOrWhiteSpace(feat.GeoJsonGeometry))
+                    {
+                        DraftFeatures.Add(new DraftFeatureItem
+                        {
+                            GameSessionPlannableLayerId = layer.Id,
+                            Layer = layer,
+                            GeoJsonGeometry = feat.GeoJsonGeometry
+                        });
+                    }
+                }
+
+                if (DraftFeatures.Any())
+                {
+                    SelectedPlannableLayerId = DraftFeatures.First().GameSessionPlannableLayerId;
+                }
+            }
+            else
+            {
+                SelectedPlannableLayerId = 0;
+            }
+
+            _needsInitialDrawingActivation = true;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[NewPlanPanel] Error loading plannable layers: {ex.Message}");
+            Console.WriteLine($"[PlanAddEditPanel] Error loading plannable layers: {ex.Message}");
         }
         finally
         {
@@ -86,7 +132,24 @@ public partial class NewPlanPanel : ComponentBase
         if (_needsInitialDrawingActivation)
         {
             _needsInitialDrawingActivation = false;
-            await ActivateSelectedLayerDrawingAsync();
+
+            if (PlanToEdit != null && DraftFeatures.Any())
+            {
+                foreach (var item in DraftFeatures)
+                {
+                    if (item.Layer?.PlannableLayerDefinition != null && !string.IsNullOrWhiteSpace(item.GeoJsonGeometry))
+                    {
+                        var def = item.Layer.PlannableLayerDefinition;
+                        await JSRuntime.InvokeVoidAsync("uspsim2d5.startDrawing", def.GeometryType.ToString(), def.DefaultColor ?? "#3b82f6", "rgba(59, 130, 246, 0.25)", item.GameSessionPlannableLayerId.ToString());
+                        await JSRuntime.InvokeVoidAsync("uspsim2d5.loadDraftFeatureGeometry", item.GameSessionPlannableLayerId.ToString(), item.GeoJsonGeometry);
+                    }
+                }
+
+                if (SelectedPlannableLayerId > 0)
+                {
+                    await ActivateSelectedLayerDrawingAsync();
+                }
+            }
         }
     }
 
@@ -114,7 +177,7 @@ public partial class NewPlanPanel : ComponentBase
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[NewPlanPanel] Error removing draft layer in JS: {ex.Message}");
+            Console.WriteLine($"[PlanAddEditPanel] Error removing draft layer in JS: {ex.Message}");
         }
 
         DraftFeatures.RemoveAll(f => f.GameSessionPlannableLayerId == gameSessionPlannableLayerId);
@@ -128,6 +191,10 @@ public partial class NewPlanPanel : ComponentBase
             {
                 SelectedPlannableLayerId = remaining.Id;
                 await ActivateSelectedLayerDrawingAsync();
+            }
+            else
+            {
+                SelectedPlannableLayerId = 0;
             }
         }
         StateHasChanged();
@@ -169,7 +236,7 @@ public partial class NewPlanPanel : ComponentBase
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[NewPlanPanel] Error syncing GeoJSON for layer {_previousSelectedPlannableLayerId}: {ex.Message}");
+                Console.WriteLine($"[PlanAddEditPanel] Error syncing GeoJSON for layer {_previousSelectedPlannableLayerId}: {ex.Message}");
             }
         }
     }
@@ -191,7 +258,7 @@ public partial class NewPlanPanel : ComponentBase
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[NewPlanPanel] Error starting drawing tool for layer {layerKey}: {ex.Message}");
+                Console.WriteLine($"[PlanAddEditPanel] Error starting drawing tool for layer {layerKey}: {ex.Message}");
             }
         }
     }
@@ -229,17 +296,32 @@ public partial class NewPlanPanel : ComponentBase
             int calculatedStartMonth = ((SelectedYear - StartYear) * 12) + (SelectedMonth - 1);
             if (calculatedStartMonth < 0) calculatedStartMonth = 0;
 
-            await PlanService.CreatePlanAsync(
-                GameSessionId,
-                TeamId,
-                PlanName.Trim(),
-                Description?.Trim(),
-                calculatedStartMonth,
-                payloads
-            );
+            Plan savedPlan;
+            if (IsEditMode && PlanToEdit != null)
+            {
+                savedPlan = await PlanService.UpdatePlanAsync(
+                    PlanToEdit.Id,
+                    PlanName.Trim(),
+                    Description?.Trim(),
+                    calculatedStartMonth,
+                    payloads
+                );
+                await PlanService.UnlockPlanAsync(PlanToEdit.Id);
+            }
+            else
+            {
+                savedPlan = await PlanService.CreatePlanAsync(
+                    GameSessionId,
+                    TeamId,
+                    PlanName.Trim(),
+                    Description?.Trim(),
+                    calculatedStartMonth,
+                    payloads
+                );
+            }
 
             await JSRuntime.InvokeVoidAsync("uspsim2d5.stopDrawing");
-            await OnSaved.InvokeAsync();
+            await OnSaved.InvokeAsync(savedPlan);
         }
         catch (Exception ex)
         {
@@ -255,11 +337,15 @@ public partial class NewPlanPanel : ComponentBase
     {
         try
         {
+            if (IsEditMode && PlanToEdit != null)
+            {
+                await PlanService.UnlockPlanAsync(PlanToEdit.Id);
+            }
             await JSRuntime.InvokeVoidAsync("uspsim2d5.stopDrawing");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[NewPlanPanel] Error stopping drawing tool: {ex.Message}");
+            Console.WriteLine($"[PlanAddEditPanel] Error stopping drawing tool: {ex.Message}");
         }
         await OnCancel.InvokeAsync();
     }
@@ -272,7 +358,7 @@ public partial class NewPlanPanel : ComponentBase
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[NewPlanPanel] Error invoking undoDrawPoint: {ex.Message}");
+            Console.WriteLine($"[PlanAddEditPanel] Error invoking undoDrawPoint: {ex.Message}");
         }
     }
 
@@ -284,7 +370,7 @@ public partial class NewPlanPanel : ComponentBase
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[NewPlanPanel] Error invoking redoDrawPoint: {ex.Message}");
+            Console.WriteLine($"[PlanAddEditPanel] Error invoking redoDrawPoint: {ex.Message}");
         }
     }
 }

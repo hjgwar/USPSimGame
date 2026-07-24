@@ -10,6 +10,7 @@ public class PlanService : IPlanService
     private readonly ILogger<PlanService> _logger;
 
     public event Func<int, Plan, Task>? OnPlanCreated;
+    public event Func<int, Task>? OnPlanLockChanged;
 
     public PlanService(
         IDbContextFactory<AppDbContext> dbContextFactory,
@@ -19,16 +20,44 @@ public class PlanService : IPlanService
         _logger = logger;
     }
 
-    public async Task<List<Plan>> GetSessionPlansAsync(int gameSessionId)
+    public async Task<List<Plan>> GetSessionPlansAsync(int gameSessionId, int currentTeamId = 0)
     {
         await using var context = await _dbContextFactory.CreateDbContextAsync();
-        var plans = await context.Plans
+        var query = context.Plans
             .Include(p => p.Team)
             .Include(p => p.Features)
                 .ThenInclude(f => f.GameSessionPlannableLayer)
                     .ThenInclude(gpl => gpl.PlannableLayerDefinition)
-            .Where(p => p.GameSessionId == gameSessionId)
-            .ToListAsync();
+            .Where(p => p.GameSessionId == gameSessionId);
+
+        if (currentTeamId > 0)
+        {
+            query = query.Where(p => p.State != PlanState.Draft || p.TeamId == currentTeamId);
+        }
+
+        var plans = await query.ToListAsync();
+
+        // Populate LockedByUserName if locked
+        var lockedSessionIds = plans
+            .Where(p => !string.IsNullOrEmpty(p.LockedBySessionId) && int.TryParse(p.LockedBySessionId, out _))
+            .Select(p => int.Parse(p.LockedBySessionId!))
+            .Distinct()
+            .ToList();
+
+        if (lockedSessionIds.Any())
+        {
+            var playerSessions = await context.PlayerSessions
+                .Where(ps => lockedSessionIds.Contains(ps.Id))
+                .ToDictionaryAsync(ps => ps.Id.ToString(), ps => ps.UserName);
+
+            foreach (var plan in plans)
+            {
+                if (!string.IsNullOrEmpty(plan.LockedBySessionId) && playerSessions.TryGetValue(plan.LockedBySessionId, out var userName))
+                {
+                    plan.LockedByUserName = userName;
+                }
+            }
+        }
 
         return plans
             .OrderBy(p => GetStatePriority(p.State))
@@ -40,12 +69,23 @@ public class PlanService : IPlanService
     public async Task<Plan?> GetPlanDetailsAsync(int planId)
     {
         await using var context = await _dbContextFactory.CreateDbContextAsync();
-        return await context.Plans
+        var plan = await context.Plans
             .Include(p => p.Team)
             .Include(p => p.Features)
                 .ThenInclude(f => f.GameSessionPlannableLayer)
                     .ThenInclude(gpl => gpl.PlannableLayerDefinition)
             .FirstOrDefaultAsync(p => p.Id == planId);
+
+        if (plan != null && !string.IsNullOrEmpty(plan.LockedBySessionId) && int.TryParse(plan.LockedBySessionId, out int playerSessionId))
+        {
+            var ps = await context.PlayerSessions.FindAsync(playerSessionId);
+            if (ps != null)
+            {
+                plan.LockedByUserName = ps.UserName;
+            }
+        }
+
+        return plan;
     }
 
     public async Task<Plan> CreatePlanAsync(
@@ -90,8 +130,7 @@ public class PlanService : IPlanService
         }
 
         await context.SaveChangesAsync();
-
-        _logger.LogInformation("PlanService: Created Plan #{PlanId} '{Name}' with {Count} features for Session #{SessionId}", plan.Id, plan.Name, features.Count, gameSessionId);
+        _logger.LogInformation("PlanService: Created Plan #{PlanId} '{Name}' for Session #{SessionId}", plan.Id, plan.Name, gameSessionId);
 
         var createdPlan = (await GetPlanDetailsAsync(plan.Id))!;
 
@@ -103,23 +142,162 @@ public class PlanService : IPlanService
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "PlanService: Exception invoking OnPlanCreated event subscribers.");
+                _logger.LogWarning(ex, "PlanService: Exception invoking OnPlanCreated subscribers.");
             }
         }
 
         return createdPlan;
     }
 
-    public async Task UpdatePlanStateAsync(int planId, PlanState newState)
+    public async Task<Plan> UpdatePlanAsync(
+        int planId,
+        string name,
+        string? description,
+        int startMonth,
+        List<PlanFeaturePayload> features)
     {
         await using var context = await _dbContextFactory.CreateDbContextAsync();
+        var plan = await context.Plans
+            .Include(p => p.Features)
+            .FirstOrDefaultAsync(p => p.Id == planId);
+
+        if (plan == null)
+        {
+            throw new InvalidOperationException($"Plan #{planId} not found.");
+        }
+
+        plan.Name = name;
+        plan.Description = description;
+        plan.StartMonth = startMonth;
+        plan.UpdatedAt = DateTime.UtcNow;
+
+        // Remove old features and replace with updated feature payloads
+        context.PlanFeatures.RemoveRange(plan.Features);
+
+        foreach (var featPayload in features)
+        {
+            if (!string.IsNullOrWhiteSpace(featPayload.GeoJsonGeometry))
+            {
+                context.PlanFeatures.Add(new PlanFeature
+                {
+                    PlanId = plan.Id,
+                    GameSessionPlannableLayerId = featPayload.GameSessionPlannableLayerId,
+                    GeoJsonGeometry = featPayload.GeoJsonGeometry,
+                    PropertiesJson = featPayload.PropertiesJson
+                });
+            }
+        }
+
+        await context.SaveChangesAsync();
+        _logger.LogInformation("PlanService: Updated Plan #{PlanId} '{Name}' details and features.", plan.Id, plan.Name);
+
+        var updatedPlan = (await GetPlanDetailsAsync(plan.Id))!;
+
+        if (OnPlanCreated != null)
+        {
+            try
+            {
+                await OnPlanCreated.Invoke(updatedPlan.GameSessionId, updatedPlan);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "PlanService: Exception invoking OnPlanCreated subscribers on update.");
+            }
+        }
+
+        return updatedPlan;
+    }
+
+    public async Task UpdatePlanStateAsync(int planId, PlanState newState)
+    {
+        if (newState == PlanState.Implemented)
+        {
+            _logger.LogWarning("PlanService: Implemented state cannot be set manually by a player.");
+            return;
+        }
+
+        await using var context = await _dbContextFactory.CreateDbContextAsync();
         var plan = await context.Plans.FindAsync(planId);
-        if (plan != null)
+        if (plan != null && plan.State != PlanState.Implemented)
         {
             plan.State = newState;
             plan.UpdatedAt = DateTime.UtcNow;
             await context.SaveChangesAsync();
             _logger.LogInformation("PlanService: Updated Plan #{PlanId} state to {State}", planId, newState);
+
+            if (OnPlanLockChanged != null)
+            {
+                await OnPlanLockChanged.Invoke(plan.GameSessionId);
+            }
+        }
+    }
+
+    public async Task<(bool Success, string? ErrorMessage)> TryLockPlanAsync(int planId, int playerSessionId)
+    {
+        await using var context = await _dbContextFactory.CreateDbContextAsync();
+        var plan = await context.Plans.FindAsync(planId);
+
+        if (plan == null)
+        {
+            return (false, "Plan not found.");
+        }
+
+        string sessionStr = playerSessionId.ToString();
+
+        // Check if already locked by someone else
+        if (!string.IsNullOrEmpty(plan.LockedBySessionId) && plan.LockedBySessionId != sessionStr)
+        {
+            var lockingPlayer = await context.PlayerSessions.FindAsync(int.Parse(plan.LockedBySessionId));
+            string name = lockingPlayer?.UserName ?? "another player";
+            return (false, $"Plan is currently locked and being edited by {name}.");
+        }
+
+        plan.LockedBySessionId = sessionStr;
+        plan.LockedAt = DateTime.UtcNow;
+        await context.SaveChangesAsync();
+
+        _logger.LogInformation("PlanService: Locked Plan #{PlanId} for PlayerSession #{SessionId}", planId, playerSessionId);
+
+        if (OnPlanLockChanged != null)
+        {
+            try
+            {
+                await OnPlanLockChanged.Invoke(plan.GameSessionId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "PlanService: Exception invoking OnPlanLockChanged subscribers.");
+            }
+        }
+
+        return (true, null);
+    }
+
+    public async Task UnlockPlanAsync(int planId)
+    {
+        await using var context = await _dbContextFactory.CreateDbContextAsync();
+        var plan = await context.Plans.FindAsync(planId);
+
+        if (plan != null && !string.IsNullOrEmpty(plan.LockedBySessionId))
+        {
+            int sessionId = plan.GameSessionId;
+            plan.LockedBySessionId = null;
+            plan.LockedAt = null;
+            await context.SaveChangesAsync();
+
+            _logger.LogInformation("PlanService: Unlocked Plan #{PlanId}", planId);
+
+            if (OnPlanLockChanged != null)
+            {
+                try
+                {
+                    await OnPlanLockChanged.Invoke(sessionId);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "PlanService: Exception invoking OnPlanLockChanged subscribers.");
+                }
+            }
         }
     }
 

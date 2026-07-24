@@ -26,6 +26,9 @@ public class Plan
 
     public string? LockedBySessionId { get; set; }
 
+    [NotMapped]
+    public string? LockedByUserName { get; set; }
+
     public DateTime? LockedAt { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

@@ -21,10 +21,8 @@ public partial class GameOverlay : ComponentBase
                 return string.Empty;
             }
 
-            int startYear = session.StartYear > 0 ? session.StartYear : DateTime.Now.Year;
-            var baseDate = new DateTime(startYear, 1, 1);
-            var currentDate = baseDate.AddMonths(session.CurrentMonth);
-            return currentDate.ToString("MMM yyyy");
+            int startYear = session.StartYear > 0 ? session.StartYear : 2026;
+            return USPSimGame.Utils.CommonGameUtils.FormatMonthYear(session.CurrentMonth, startYear);
         }
     }
 
