@@ -1,0 +1,201 @@
+@namespace USPSimGame.Components.Game
+@using USPSimGame.Data.Entities
+
+<div class="new-plan-panel-container position-fixed bottom-0 end-0 m-3 z-3">
+    <div class="card border-0 shadow-lg rounded-4 overflow-hidden new-plan-card" style="width: 380px; max-width: calc(100vw - 32px);">
+        <!-- Header -->
+        <div class="card-header bg-success text-white p-3 d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-pencil-square h5 mb-0"></i>
+                <h6 class="fw-bold mb-0">Develop Spatial Plan</h6>
+            </div>
+            <button class="btn-close btn-close-white" @onclick="CancelAsync"></button>
+        </div>
+
+        <div class="card-body p-3 overflow-auto" style="max-height: 480px;">
+            @if (ErrorMessage != null)
+            {
+                <div class="alert alert-danger border-0 small rounded-3 p-2 mb-3">
+                    <i class="bi bi-exclamation-circle me-1"></i>@ErrorMessage
+                </div>
+            }
+
+            @if (IsLoading)
+            {
+                <div class="text-center py-4">
+                    <div class="spinner-border spinner-border-sm text-success" role="status"></div>
+                    <span class="ms-2 text-muted small">Loading plannable layers...</span>
+                </div>
+            }
+            else if (!SessionPlannableLayers.Any())
+            {
+                <div class="alert alert-warning border-0 rounded-3 small">
+                    <i class="bi bi-exclamation-triangle me-1"></i>No plannable layers are attached to this game session. Ask the session creator to attach plannable layers.
+                </div>
+            }
+            else
+            {
+                <div class="d-flex flex-column gap-3">
+                    <div>
+                        <label class="form-label fw-bold text-dark small mb-1">Plan Name</label>
+                        <input type="text" class="form-control form-control-sm" @bind="PlanName" placeholder="e.g. Science Park Solar Expansion" required />
+                    </div>
+
+                    <div>
+                        <label class="form-label fw-bold text-dark small mb-1">Description</label>
+                        <textarea class="form-control form-control-sm" rows="2" @bind="Description" placeholder="Optional notes or plan description..."></textarea>
+                    </div>
+
+                    <div>
+                        <label class="form-label fw-bold text-dark small mb-1">Implementation Target Date</label>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <select class="form-select form-select-sm" @bind="SelectedMonth">
+                                    <option value="1">January (Month 1)</option>
+                                    <option value="2">February</option>
+                                    <option value="3">March</option>
+                                    <option value="4">April</option>
+                                    <option value="5">May</option>
+                                    <option value="6">June</option>
+                                    <option value="7">July</option>
+                                    <option value="8">August</option>
+                                    <option value="9">September</option>
+                                    <option value="10">October</option>
+                                    <option value="11">November</option>
+                                    <option value="12">December</option>
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <select class="form-select form-select-sm" @bind="SelectedYear">
+                                    @for (int yr = StartYear; yr <= StartYear + 30; yr++)
+                                    {
+                                        <option value="@yr">@yr</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="form-label fw-bold text-dark small mb-1">Plannable Development Layer</label>
+                        <select class="form-select form-select-sm mb-2" @bind="SelectedPlannableLayerId" @bind:after="OnPlannableLayerChangedAsync">
+                            <option value="0">-- Select Plannable Layer to Draw --</option>
+                            @foreach (var pLayer in SessionPlannableLayers)
+                            {
+                                <option value="@pLayer.Id">@pLayer.PlannableLayerDefinition.Name (@pLayer.PlannableLayerDefinition.GeometryType)</option>
+                            }
+                        </select>
+
+                        @{
+                            var currentLayer = SessionPlannableLayers.FirstOrDefault(l => l.Id == SelectedPlannableLayerId);
+                        }
+                        @if (currentLayer != null)
+                        {
+                            <div class="p-2 rounded-3 bg-light border d-flex align-items-center justify-content-between mb-2">
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="rounded-circle p-2 d-flex align-items-center justify-content-center text-white" style="background-color: @(currentLayer.PlannableLayerDefinition.DefaultColor ?? "#3b82f6"); width: 32px; height: 32px;">
+                                        <i class="bi @(currentLayer.PlannableLayerDefinition.Icon ?? "bi-layers-fill") small mb-0"></i>
+                                    </div>
+                                    <div>
+                                        <span class="badge bg-warning-subtle text-dark border border-warning-subtle micro-text me-1">
+                                            @currentLayer.PlannableLayerDefinition.GeometryType
+                                        </span>
+                                        <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle micro-text">
+                                            @currentLayer.PlannableLayerDefinition.Category
+                                        </span>
+                                    </div>
+                                </div>
+                                <span class="badge bg-success-subtle text-success border border-success-subtle micro-text animate-pulse">
+                                    <i class="bi bi-pencil me-1"></i>Drawing Active
+                                </span>
+                            </div>
+
+                            <!-- Undo / Redo Point Controls -->
+                            <div class="d-flex align-items-center justify-content-between p-2 rounded-3 bg-white border">
+                                <small class="fw-semibold text-muted micro-text">
+                                    <i class="bi bi-vector-pen me-1 text-primary"></i>Drawing Controls:
+                                </small>
+                                <div class="d-flex gap-2">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 rounded-pill undo-redo-btn" @onclick="UndoPointAsync" title="Undo last drawn point">
+                                        <i class="bi bi-arrow-counterclockwise me-1 text-primary"></i>Undo Point
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 rounded-pill undo-redo-btn" @onclick="RedoPointAsync" title="Redo last point">
+                                        <i class="bi bi-arrow-clockwise me-1 text-primary"></i>Redo Point
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                    </div>
+
+                    <!-- Drawn Features in this Plan -->
+                    @if (DraftFeatures.Any())
+                    {
+                        <div>
+                            <label class="form-label fw-bold text-dark small mb-1">
+                                <i class="bi bi-layers text-success me-1"></i>Drawn Plan Features (@DraftFeatures.Count)
+                            </label>
+                            <div class="d-flex flex-column gap-2">
+                                @foreach (var featureItem in DraftFeatures)
+                                {
+                                    bool isCurrentActive = (featureItem.GameSessionPlannableLayerId == SelectedPlannableLayerId);
+                                    var pDef = featureItem.Layer?.PlannableLayerDefinition;
+
+                                    <div class="p-2 rounded-3 border draft-feature-row cursor-pointer transition-all @(isCurrentActive ? "border-success bg-success-subtle" : "bg-white hover-bg-light")"
+                                         @onclick="() => SelectDraftFeatureAsync(featureItem.GameSessionPlannableLayerId)"
+                                         title="Click to switch and continue drawing on this layer">
+                                        <div class="d-flex align-items-center justify-content-between">
+                                            <div class="d-flex align-items-center gap-2">
+                                                <div class="rounded-circle p-1 d-flex align-items-center justify-content-center text-white" style="background-color: @(pDef?.DefaultColor ?? "#3b82f6"); width: 28px; height: 28px;">
+                                                    <i class="bi @(pDef?.Icon ?? "bi-layers-fill") micro-text"></i>
+                                                </div>
+                                                <div>
+                                                    <span class="badge bg-warning-subtle text-dark border border-warning-subtle micro-text me-1">@(pDef?.GeometryType)</span>
+                                                    <span class="fw-semibold text-dark small">@(pDef?.Name ?? "Layer")</span>
+                                                </div>
+                                            </div>
+
+                                            <div class="d-flex align-items-center gap-2">
+                                                @if (isCurrentActive)
+                                                {
+                                                    <span class="badge bg-success text-white micro-text">Active</span>
+                                                }
+                                                <button type="button" class="btn btn-sm btn-outline-danger p-0 px-2 action-btn-small"
+                                                        @onclick:stopPropagation="true"
+                                                        @onclick="() => RemoveDraftFeatureAsync(featureItem.GameSessionPlannableLayerId)"
+                                                        title="Undo/clear all geometry drawn on this layer">
+                                                    <i class="bi bi-x-lg"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+
+                    <div class="alert alert-info border-0 rounded-3 small p-2 mb-0 d-flex align-items-center gap-2">
+                        <i class="bi bi-info-circle-fill text-info h6 mb-0"></i>
+                        <span class="micro-text">Click directly on the map to draw shape geometry. Switch layers anytime to build multi-layer plans.</span>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div class="card-footer bg-transparent border-top p-3 d-flex justify-content-end gap-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" @onclick="CancelAsync" disabled="@IsSaving">
+                Cancel
+            </button>
+            <button type="button" class="btn btn-sm btn-success rounded-pill px-4" @onclick="SavePlanAsync" disabled="@(IsSaving || !SessionPlannableLayers.Any())">
+                @if (IsSaving)
+                {
+                    <span class="spinner-border spinner-border-sm me-1" role="status"></span>
+                    <span>Saving...</span>
+                }
+                else
+                {
+                    <span><i class="bi bi-check-circle me-1"></i>Save Spatial Plan</span>
+                }
+            </button>
+        </div>
+    </div>
+</div>

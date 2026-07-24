@@ -4,6 +4,7 @@ using USPSimGame.Components;
 using USPSimGame.Data;
 using USPSimGame.Services;
 using USPSimGame.Services.Layers;
+using USPSimGame.Services.Plans;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -29,6 +30,7 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IGameSessionService, GameSessionService>();
 builder.Services.AddScoped<ITeamService, TeamService>();
 builder.Services.AddScoped<IPlayerSessionService, PlayerSessionService>();
+builder.Services.AddScoped<IPlanService, PlanService>();
 builder.Services.AddScoped<CreatorAuthState>();
 builder.Services.AddScoped<PlayerSessionState>();
 
@@ -73,6 +75,22 @@ using (var scope = app.Services.CreateScope())
         }
         catch (Exception ex)
         {
+            if (ex.ToString().Contains("42P07") || ex.ToString().Contains("already exists"))
+            {
+                logger.LogWarning("Existing database schema is incompatible with reset EF migrations (table already exists). Re-creating database...");
+                try
+                {
+                    await dbContext.Database.EnsureDeletedAsync();
+                    await dbContext.Database.MigrateAsync();
+                    logger.LogInformation("EF Core database successfully re-created and migrated.");
+                    break;
+                }
+                catch (Exception reEx)
+                {
+                    logger.LogError(reEx, "Failed to re-create database after migration reset.");
+                }
+            }
+
             logger.LogError(ex, "Database migration failed on attempt {Attempt}/{MaxRetries}.", retry, maxRetries);
             if (retry == maxRetries)
             {

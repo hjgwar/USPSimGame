@@ -1,0 +1,31 @@
+.new-plan-panel-container {
+    width: 380px;
+    max-width: calc(100vw - 32px);
+}
+
+.new-plan-card {
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.6) !important;
+}
+
+.micro-text {
+    font-size: 0.725rem;
+}
+
+.undo-redo-btn {
+    font-size: 0.75rem;
+}
+
+.animate-pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}

@@ -2,8 +2,11 @@ using System.Globalization;
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 using OpenLayers.Blazor;
+using USPSimGame.Components.Game;
+using USPSimGame.Data.Entities;
 using USPSimGame.Services;
 using USPSimGame.Services.Layers;
+using USPSimGame.Services.Plans;
 
 namespace USPSimGame.Components.Pages;
 
@@ -16,6 +19,9 @@ public partial class Game : ComponentBase
     public IMapLayerService MapLayerService { get; set; } = default!;
 
     [Inject]
+    public IPlanService PlanService { get; set; } = default!;
+
+    [Inject]
     public IJSRuntime JSRuntime { get; set; } = default!;
 
     [Inject]
@@ -25,6 +31,10 @@ public partial class Game : ComponentBase
     public ILogger<Game> Logger { get; set; } = default!;
 
     protected OpenStreetMap? map;
+    protected PlansControlPanel? plansControlPanel;
+
+    protected bool ShowNewPlanPanel { get; set; } = false;
+    protected Plan? ActivePlan { get; set; }
 
     protected Coordinate MapCenter
     {
@@ -86,6 +96,103 @@ public partial class Game : ComponentBase
                     Logger.LogError(ex, "Game.razor: Error triggering session layer HTTP streams.");
                 }
             }
+        }
+    }
+
+    protected void OpenNewPlanPanel()
+    {
+        ActivePlan = null;
+        ShowNewPlanPanel = true;
+        _ = ClearPlanHighlightAsync();
+    }
+
+    protected async Task CloseNewPlanPanelAsync()
+    {
+        ShowNewPlanPanel = false;
+        await StopDrawingAsync();
+    }
+
+    protected async Task HandlePlanSavedAsync()
+    {
+        ShowNewPlanPanel = false;
+        await StopDrawingAsync();
+        if (plansControlPanel != null)
+        {
+            await plansControlPanel.RefreshPlansAsync();
+        }
+    }
+
+    protected async Task HandlePlanSelectedAsync(Plan? plan)
+    {
+        ShowNewPlanPanel = false;
+        await StopDrawingAsync();
+        ActivePlan = plan;
+
+        if (ActivePlan == null)
+        {
+            await ClearPlanHighlightAsync();
+        }
+        else
+        {
+            await HighlightPlanFeaturesAsync(ActivePlan);
+        }
+    }
+
+    protected async Task ClosePlanViewAsync()
+    {
+        ActivePlan = null;
+        await ClearPlanHighlightAsync();
+    }
+
+    private async Task HighlightPlanFeaturesAsync(Plan plan)
+    {
+        try
+        {
+            var featurePayloads = plan.Features
+                .Where(f => !string.IsNullOrEmpty(f.GeoJsonGeometry))
+                .Select(f => new
+                {
+                    geoJson = f.GeoJsonGeometry,
+                    color = f.GameSessionPlannableLayer?.PlannableLayerDefinition?.DefaultColor ?? "#10b981"
+                })
+                .ToList();
+
+            if (featurePayloads.Any())
+            {
+                await JSRuntime.InvokeVoidAsync("uspsim2d5.renderPlanFeatures", featurePayloads, "#10b981");
+            }
+            else
+            {
+                await ClearPlanHighlightAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Game.razor: Error rendering plan feature highlight on map.");
+        }
+    }
+
+    private async Task ClearPlanHighlightAsync()
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("uspsim2d5.clearPlanHighlight");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Game.razor: Error clearing plan highlight.");
+        }
+    }
+
+    private async Task StopDrawingAsync()
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("uspsim2d5.stopDrawing");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Game.razor: Error stopping drawing mode.");
         }
     }
 }

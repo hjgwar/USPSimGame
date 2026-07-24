@@ -16,8 +16,37 @@
 else
 {
     <GameOverlay />
+
+    <!-- Spatial Plans Panel (Top Left) -->
+    <PlansControlPanel @ref="plansControlPanel"
+                      GameSessionId="@(PlayerSessionState.CurrentGameSession?.Id ?? 0)"
+                      StartYear="@(PlayerSessionState.CurrentGameSession?.StartYear ?? 2026)"
+                      ActivePlan="@ActivePlan"
+                      OnOpenNewPlan="OpenNewPlanPanel"
+                      OnPlanSelected="HandlePlanSelectedAsync" />
+
+    <!-- Map Layers & Legend Panel (Bottom Left) -->
     <MapControlPanel GameSessionId="@(PlayerSessionState.CurrentGameSession?.Id ?? 0)" />
 
+    <!-- New Plan Form Panel (Bottom Right) -->
+    @if (ShowNewPlanPanel)
+    {
+        <NewPlanPanel GameSessionId="@(PlayerSessionState.CurrentGameSession?.Id ?? 0)"
+                      TeamId="@(PlayerSessionState.CurrentTeam?.Id ?? 0)"
+                      StartYear="@(PlayerSessionState.CurrentGameSession?.StartYear ?? 2026)"
+                      OnSaved="HandlePlanSavedAsync"
+                      OnCancel="CloseNewPlanPanelAsync" />
+    }
+
+    <!-- Plan View Panel (Bottom Right) -->
+    @if (ActivePlan != null)
+    {
+        <PlanViewPanel Plan="@ActivePlan"
+                       StartYear="@(PlayerSessionState.CurrentGameSession?.StartYear ?? 2026)"
+                       OnClose="ClosePlanViewAsync" />
+    }
+
+    <!-- OpenLayers Base Map -->
     <OpenStreetMap Style="height:100vh;" @ref="map" Zoom="@(PlayerSessionState.CurrentGameSession?.Zoom ?? 15)" Center="@MapCenter" ConfigureJsMethod="uspsim2d5.configureMap">
     </OpenStreetMap>
 }

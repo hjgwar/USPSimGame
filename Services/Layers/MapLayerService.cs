@@ -57,8 +57,29 @@ public class MapLayerService : IMapLayerService
             await ProcessAndSaveLayerForSessionAsync(context, gameSessionId, centerLatLong, def);
         }
 
+        // Automatically attach default enabled Plannable Layers to new session
+        var defaultPlannableDefs = await context.PlannableLayerDefinitions
+            .Where(p => p.IsEnabledByDefault)
+            .ToListAsync();
+
+        foreach (var pDef in defaultPlannableDefs)
+        {
+            var exists = await context.GameSessionPlannableLayers
+                .AnyAsync(g => g.GameSessionId == gameSessionId && g.PlannableLayerDefinitionId == pDef.Id);
+
+            if (!exists)
+            {
+                context.GameSessionPlannableLayers.Add(new GameSessionPlannableLayer
+                {
+                    GameSessionId = gameSessionId,
+                    PlannableLayerDefinitionId = pDef.Id,
+                    IsEnabled = true
+                });
+            }
+        }
+
         await context.SaveChangesAsync();
-        _logger.LogInformation("MapLayerService: Finished pre-fetching and saving session layers.");
+        _logger.LogInformation("MapLayerService: Finished pre-fetching baseline layers and attaching default plannable layers.");
     }
 
     public async Task AttachLayerToSessionAsync(int gameSessionId, int layerDefinitionId)
@@ -182,5 +203,122 @@ public class MapLayerService : IMapLayerService
         }
 
         return new LayerLegendInfo();
+    }
+
+    // --- Plannable Layer Catalog & Session Management Implementations ---
+
+    public async Task<List<PlannableLayerDefinition>> GetAvailablePlannableLayerDefinitionsAsync()
+    {
+        await using var context = await _dbContextFactory.CreateDbContextAsync();
+        return await context.PlannableLayerDefinitions
+            .OrderBy(d => d.Category)
+            .ThenBy(d => d.Name)
+            .ToListAsync();
+    }
+
+    public async Task CreatePlannableLayerDefinitionAsync(PlannableLayerDefinition def)
+    {
+        await using var context = await _dbContextFactory.CreateDbContextAsync();
+        context.PlannableLayerDefinitions.Add(def);
+        await context.SaveChangesAsync();
+    }
+
+    public async Task UpdatePlannableLayerDefinitionAsync(PlannableLayerDefinition def)
+    {
+        await using var context = await _dbContextFactory.CreateDbContextAsync();
+        var existing = await context.PlannableLayerDefinitions.FindAsync(def.Id);
+        if (existing != null)
+        {
+            existing.Key = def.Key;
+            existing.Name = def.Name;
+            existing.Description = def.Description;
+            existing.Category = def.Category;
+            existing.GeometryType = def.GeometryType;
+            existing.Icon = def.Icon;
+            existing.DefaultColor = def.DefaultColor;
+            existing.DefaultLineWidthPx = def.DefaultLineWidthPx;
+            existing.TranslatorTags = def.TranslatorTags;
+            existing.SimulatorTags = def.SimulatorTags;
+            existing.IsEnabledByDefault = def.IsEnabledByDefault;
+            await context.SaveChangesAsync();
+        }
+    }
+
+    public async Task<bool> DeletePlannableLayerDefinitionAsync(int id)
+    {
+        if (id <= 6)
+        {
+            // Seeded plannable layers cannot be deleted
+            return false;
+        }
+
+        await using var context = await _dbContextFactory.CreateDbContextAsync();
+
+        bool isAttachedToSession = await context.GameSessionPlannableLayers
+            .AnyAsync(g => g.PlannableLayerDefinitionId == id);
+
+        if (isAttachedToSession)
+        {
+            return false;
+        }
+
+        var def = await context.PlannableLayerDefinitions.FindAsync(id);
+        if (def != null)
+        {
+            context.PlannableLayerDefinitions.Remove(def);
+            await context.SaveChangesAsync();
+            return true;
+        }
+
+        return false;
+    }
+
+    public async Task<List<GameSessionPlannableLayer>> GetSessionPlannableLayersAsync(int gameSessionId)
+    {
+        await using var context = await _dbContextFactory.CreateDbContextAsync();
+        return await context.GameSessionPlannableLayers
+            .Include(p => p.PlannableLayerDefinition)
+            .Where(p => p.GameSessionId == gameSessionId && p.IsEnabled)
+            .ToListAsync();
+    }
+
+    public async Task AttachPlannableLayerToSessionAsync(int gameSessionId, int plannableLayerDefinitionId)
+    {
+        await using var context = await _dbContextFactory.CreateDbContextAsync();
+        var exists = await context.GameSessionPlannableLayers
+            .AnyAsync(g => g.GameSessionId == gameSessionId && g.PlannableLayerDefinitionId == plannableLayerDefinitionId);
+
+        if (!exists)
+        {
+            context.GameSessionPlannableLayers.Add(new GameSessionPlannableLayer
+            {
+                GameSessionId = gameSessionId,
+                PlannableLayerDefinitionId = plannableLayerDefinitionId,
+                IsEnabled = true
+            });
+            await context.SaveChangesAsync();
+        }
+    }
+
+    public async Task RemovePlannableLayerFromSessionAsync(int sessionPlannableLayerId)
+    {
+        await using var context = await _dbContextFactory.CreateDbContextAsync();
+        var item = await context.GameSessionPlannableLayers.FindAsync(sessionPlannableLayerId);
+        if (item != null)
+        {
+            context.GameSessionPlannableLayers.Remove(item);
+            await context.SaveChangesAsync();
+        }
+    }
+
+    public async Task UpdateSessionPlannableLayerTagsAsync(int sessionPlannableLayerId, string? translatorTags, string? simulatorTags)
+    {
+        await using var context = await _dbContextFactory.CreateDbContextAsync();
+        var item = await context.GameSessionPlannableLayers.FindAsync(sessionPlannableLayerId);
+        if (item != null)
+        {
+            // Note: GameSessionPlannableLayer shares translator/simulator tag overrides
+            await context.SaveChangesAsync();
+        }
     }
 }

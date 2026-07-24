@@ -15,4 +15,6 @@ public class GameSession
 
     public ICollection<GameSessionMapLayer> MapLayers { get; set; } = new List<GameSessionMapLayer>();
     public ICollection<Team> Teams { get; set; } = new List<Team>();
+    public ICollection<GameSessionPlannableLayer> PlannableLayers { get; set; } = new List<GameSessionPlannableLayer>();
+    public ICollection<Plan> Plans { get; set; } = new List<Plan>();
 }

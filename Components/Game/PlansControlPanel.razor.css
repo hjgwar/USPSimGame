@@ -1,0 +1,35 @@
+.plans-control-panel-container {
+    position: fixed;
+    top: 110px;
+    left: 1rem;
+    width: 320px;
+    max-width: calc(100vw - 32px);
+    z-index: 1030;
+}
+
+.plans-control-card {
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.6) !important;
+}
+
+.panel-content-body {
+    max-height: calc(100vh - 430px);
+}
+
+.plan-item-card {
+    transition: all 0.2s ease-in-out;
+}
+
+.cursor-pointer {
+    cursor: pointer;
+}
+
+.hover-bg-light:hover {
+    background-color: #f8fafc !important;
+    border-color: #cbd5e1 !important;
+}
+
+.micro-text {
+    font-size: 0.725rem;
+}

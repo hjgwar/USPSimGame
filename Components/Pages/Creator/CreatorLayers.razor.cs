@@ -6,18 +6,26 @@ namespace USPSimGame.Components.Pages.Creator;
 public partial class CreatorLayers : ComponentBase
 {
     protected List<MapLayerDefinition> LayerDefinitions { get; set; } = new();
+    protected List<PlannableLayerDefinition> PlannableDefinitions { get; set; } = new();
     protected bool IsLoading { get; set; } = true;
+    protected string ActiveTab { get; set; } = "baseline";
 
-    protected bool ShowEditModal { get; set; } = false;
-    protected MapLayerDefinition? EditingLayer { get; set; }
+    // Edit Baseline Tags Modal State
+    protected bool ShowEditBaselineModal { get; set; } = false;
+    protected MapLayerDefinition? EditingBaselineLayer { get; set; }
     protected string EditTranslatorTags { get; set; } = string.Empty;
     protected string EditSimulatorTags { get; set; } = string.Empty;
+
+    // Create / Edit Plannable Layer Modal State
+    protected bool ShowPlannableModal { get; set; } = false;
+    protected bool IsEditingPlannable { get; set; } = false;
+    protected PlannableLayerDefinition EditingPlannableLayer { get; set; } = new();
 
     protected override async Task OnInitializedAsync()
     {
         if (AuthState.IsAuthenticated)
         {
-            await LoadLayerDefinitionsAsync();
+            await LoadDataAsync();
         }
         else
         {
@@ -25,12 +33,13 @@ public partial class CreatorLayers : ComponentBase
         }
     }
 
-    private async Task LoadLayerDefinitionsAsync()
+    private async Task LoadDataAsync()
     {
         IsLoading = true;
         try
         {
             LayerDefinitions = await MapLayerService.GetAvailableLayerDefinitionsAsync();
+            PlannableDefinitions = await MapLayerService.GetAvailablePlannableLayerDefinitionsAsync();
         }
         catch (Exception ex)
         {
@@ -42,34 +51,121 @@ public partial class CreatorLayers : ComponentBase
         }
     }
 
-    protected void OpenEditModal(MapLayerDefinition layer)
+    protected void SetTab(string tab)
     {
-        EditingLayer = layer;
+        ActiveTab = tab;
+    }
+
+    // --- Baseline Layer Actions ---
+    protected void OpenEditBaselineModal(MapLayerDefinition layer)
+    {
+        EditingBaselineLayer = layer;
         EditTranslatorTags = layer.TranslatorTags ?? string.Empty;
         EditSimulatorTags = layer.SimulatorTags ?? string.Empty;
-        ShowEditModal = true;
+        ShowEditBaselineModal = true;
     }
 
-    protected void CloseEditModal()
+    protected void CloseEditBaselineModal()
     {
-        ShowEditModal = false;
-        EditingLayer = null;
+        ShowEditBaselineModal = false;
+        EditingBaselineLayer = null;
     }
 
-    protected async Task SaveCatalogDefaultTagsAsync()
+    protected async Task SaveBaselineTagsAsync()
     {
-        if (EditingLayer != null)
+        if (EditingBaselineLayer != null)
         {
             try
             {
-                await MapLayerService.UpdateLayerDefinitionTagsAsync(EditingLayer.Id, EditTranslatorTags, EditSimulatorTags);
-                await LoadLayerDefinitionsAsync();
+                await MapLayerService.UpdateLayerDefinitionTagsAsync(EditingBaselineLayer.Id, EditTranslatorTags, EditSimulatorTags);
+                await LoadDataAsync();
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[CreatorLayers] Error saving catalog tags: {ex.Message}");
+                Console.WriteLine($"[CreatorLayers] Error saving baseline tags: {ex.Message}");
             }
         }
-        CloseEditModal();
+        CloseEditBaselineModal();
+    }
+
+    // --- Plannable Layer Actions ---
+    protected void OpenCreatePlannableModal()
+    {
+        IsEditingPlannable = false;
+        EditingPlannableLayer = new PlannableLayerDefinition
+        {
+            Key = "new-plannable-layer",
+            Name = "New Plannable Layer",
+            Category = MapLayerCategory.Infrastructure,
+            GeometryType = PlannableGeometryType.Polygon,
+            Icon = "bi-layers-fill",
+            DefaultColor = "#3b82f6",
+            DefaultLineWidthPx = 2.5,
+            IsEnabledByDefault = false
+        };
+        ShowPlannableModal = true;
+    }
+
+    protected void OpenEditPlannableModal(PlannableLayerDefinition def)
+    {
+        IsEditingPlannable = true;
+        EditingPlannableLayer = new PlannableLayerDefinition
+        {
+            Id = def.Id,
+            Key = def.Key,
+            Name = def.Name,
+            Description = def.Description,
+            Category = def.Category,
+            GeometryType = def.GeometryType,
+            Icon = def.Icon,
+            DefaultColor = def.DefaultColor,
+            DefaultLineWidthPx = def.DefaultLineWidthPx,
+            TranslatorTags = def.TranslatorTags,
+            SimulatorTags = def.SimulatorTags,
+            IsEnabledByDefault = def.IsEnabledByDefault
+        };
+        ShowPlannableModal = true;
+    }
+
+    protected void ClosePlannableModal()
+    {
+        ShowPlannableModal = false;
+    }
+
+    protected async Task SavePlannableLayerAsync()
+    {
+        try
+        {
+            if (IsEditingPlannable)
+            {
+                await MapLayerService.UpdatePlannableLayerDefinitionAsync(EditingPlannableLayer);
+            }
+            else
+            {
+                await MapLayerService.CreatePlannableLayerDefinitionAsync(EditingPlannableLayer);
+            }
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[CreatorLayers] Error saving plannable layer: {ex.Message}");
+        }
+        ClosePlannableModal();
+    }
+
+    protected async Task DeletePlannableLayerAsync(int id)
+    {
+        try
+        {
+            bool success = await MapLayerService.DeletePlannableLayerDefinitionAsync(id);
+            if (success)
+            {
+                await LoadDataAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[CreatorLayers] Error deleting plannable layer: {ex.Message}");
+        }
     }
 }

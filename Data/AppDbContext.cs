@@ -15,6 +15,10 @@ public class AppDbContext : DbContext
     public DbSet<PlayerSession> PlayerSessions => Set<PlayerSession>();
     public DbSet<MapLayerDefinition> MapLayerDefinitions => Set<MapLayerDefinition>();
     public DbSet<GameSessionMapLayer> GameSessionMapLayers => Set<GameSessionMapLayer>();
+    public DbSet<PlannableLayerDefinition> PlannableLayerDefinitions => Set<PlannableLayerDefinition>();
+    public DbSet<GameSessionPlannableLayer> GameSessionPlannableLayers => Set<GameSessionPlannableLayer>();
+    public DbSet<Plan> Plans => Set<Plan>();
+    public DbSet<PlanFeature> PlanFeatures => Set<PlanFeature>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -54,14 +58,63 @@ public class AppDbContext : DbContext
             .HasForeignKey(g => g.MapLayerDefinitionId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        // PlannableLayer & Spatial Plan Conversions and Relationships
+        modelBuilder.Entity<PlannableLayerDefinition>()
+            .Property(p => p.Category)
+            .HasConversion<string>();
+
+        modelBuilder.Entity<PlannableLayerDefinition>()
+            .Property(p => p.GeometryType)
+            .HasConversion<string>();
+
+        modelBuilder.Entity<GameSessionPlannableLayer>()
+            .HasOne(g => g.GameSession)
+            .WithMany(s => s.PlannableLayers)
+            .HasForeignKey(g => g.GameSessionId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<GameSessionPlannableLayer>()
+            .HasOne(g => g.PlannableLayerDefinition)
+            .WithMany()
+            .HasForeignKey(g => g.PlannableLayerDefinitionId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<Plan>()
+            .Property(p => p.State)
+            .HasConversion<string>();
+
+        modelBuilder.Entity<Plan>()
+            .HasOne(p => p.GameSession)
+            .WithMany(s => s.Plans)
+            .HasForeignKey(p => p.GameSessionId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<Plan>()
+            .HasOne(p => p.Team)
+            .WithMany()
+            .HasForeignKey(p => p.TeamId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<PlanFeature>()
+            .HasOne(pf => pf.Plan)
+            .WithMany(p => p.Features)
+            .HasForeignKey(pf => pf.PlanId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<PlanFeature>()
+            .HasOne(pf => pf.GameSessionPlannableLayer)
+            .WithMany()
+            .HasForeignKey(pf => pf.GameSessionPlannableLayerId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         // Seed initial MapLayerDefinition catalog items
         modelBuilder.Entity<MapLayerDefinition>().HasData(
             new MapLayerDefinition
             {
                 Id = 1,
                 Key = "pdok-3dbag-buildings",
-                Name = "3D BAG Buildings (2.5D Extruded)",
-                Description = "Extruded 3D building footprints derived from 3D BAG lidar elevation data (LoD 1.3).",
+                Name = "3D BAG Buildings",
+                Description = "3D building footprints, roof shapes, heights, and volumes from 3D BAG (Kadaster/TU Delft).",
                 LayerType = MapLayerType.VectorGeoJson,
                 Category = MapLayerCategory.Buildings,
                 IsEnabledByDefault = true,
@@ -72,8 +125,8 @@ public class AppDbContext : DbContext
             {
                 Id = 2,
                 Key = "liander-open-data-elektra",
-                Name = "Liander Electricity Network (Cables & Stations)",
-                Description = "Electrical grid infrastructure featuring low-, medium-, and high-voltage cables and transformer stations for Liander territory.",
+                Name = "Liander Electricity Grid",
+                Description = "Low-, medium-, and high-voltage electricity grid network for Liander service territory.",
                 LayerType = MapLayerType.VectorGeoJson,
                 Category = MapLayerCategory.Infrastructure,
                 IsEnabledByDefault = false,
@@ -127,6 +180,88 @@ public class AppDbContext : DbContext
                 IsEnabledByDefault = false,
                 TranslatorTags = null,
                 SimulatorTags = null
+            }
+        );
+
+        // Seed initial PlannableLayerDefinition catalog items
+        modelBuilder.Entity<PlannableLayerDefinition>().HasData(
+            new PlannableLayerDefinition
+            {
+                Id = 1,
+                Key = "solar-farm",
+                Name = "Solar Farm Area",
+                Description = "Zoned land polygon area designated for ground-mounted solar PV development.",
+                Category = MapLayerCategory.Infrastructure,
+                GeometryType = PlannableGeometryType.Polygon,
+                Icon = "bi-sun-fill",
+                DefaultColor = "#f59e0b",
+                DefaultLineWidthPx = 2.5,
+                IsEnabledByDefault = true
+            },
+            new PlannableLayerDefinition
+            {
+                Id = 2,
+                Key = "wind-farm",
+                Name = "Wind Farm Zone",
+                Description = "Zoned land polygon area designated for onshore wind turbine installations.",
+                Category = MapLayerCategory.Infrastructure,
+                GeometryType = PlannableGeometryType.Polygon,
+                Icon = "bi-wind",
+                DefaultColor = "#06b6d4",
+                DefaultLineWidthPx = 2.5,
+                IsEnabledByDefault = true
+            },
+            new PlannableLayerDefinition
+            {
+                Id = 3,
+                Key = "ev-charger-hub",
+                Name = "EV Charging Station Hub",
+                Description = "Public or commercial electric vehicle charging station hub point location.",
+                Category = MapLayerCategory.Infrastructure,
+                GeometryType = PlannableGeometryType.Point,
+                Icon = "bi-ev-station-fill",
+                DefaultColor = "#10b981",
+                DefaultLineWidthPx = 2.0,
+                IsEnabledByDefault = true
+            },
+            new PlannableLayerDefinition
+            {
+                Id = 4,
+                Key = "power-cable",
+                Name = "Electricity Connection Cable",
+                Description = "High, medium, or low voltage power transmission or distribution line.",
+                Category = MapLayerCategory.Infrastructure,
+                GeometryType = PlannableGeometryType.Line,
+                Icon = "bi-lightning-charge-fill",
+                DefaultColor = "#3b82f6",
+                DefaultLineWidthPx = 3.5,
+                IsEnabledByDefault = true
+            },
+            new PlannableLayerDefinition
+            {
+                Id = 5,
+                Key = "transformer-substation",
+                Name = "Transformer Substation",
+                Description = "Electrical grid transformer station or substations for voltage step-down/step-up.",
+                Category = MapLayerCategory.Infrastructure,
+                GeometryType = PlannableGeometryType.Point,
+                Icon = "bi-box-seam",
+                DefaultColor = "#ef4444",
+                DefaultLineWidthPx = 2.0,
+                IsEnabledByDefault = true
+            },
+            new PlannableLayerDefinition
+            {
+                Id = 6,
+                Key = "building-insulation-policy",
+                Name = "Building Insulation Policy",
+                Description = "Targeted building policy intervention for thermal envelope and insulation upgrades.",
+                Category = MapLayerCategory.Buildings,
+                GeometryType = PlannableGeometryType.AttributePolicy,
+                Icon = "bi-house-heart-fill",
+                DefaultColor = "#8b5cf6",
+                DefaultLineWidthPx = 2.0,
+                IsEnabledByDefault = false
             }
         );
     }

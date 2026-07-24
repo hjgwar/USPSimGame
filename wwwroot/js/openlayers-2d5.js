@@ -22,6 +22,8 @@ window._mapLayers = window._mapLayers || {};
 window._desiredZIndices = window._desiredZIndices || {};
 window._desiredVisibilities = window._desiredVisibilities || {};
 window._pendingLayersToRender = window._pendingLayersToRender || [];
+window._draftVectorLayers = window._draftVectorLayers || {};
+window._currentDraftLayerId = null;
 
 // Static Style Cache (Zero allocation overhead)
 const STATIC_STYLES = {
@@ -418,6 +420,331 @@ window.uspsim2d5 = {
 
         } catch (err) {
             console.error(`[Infrastructure Log] Error rendering infrastructure layer '${layerKey}':`, err);
+        }
+    },
+
+    startDrawing: function (geomType, strokeColor, fillColor, layerId) {
+        const self = this;
+        const map = window.activeOlMap;
+        if (!map) {
+            console.warn('[uspsim2d5] Map instance not ready for drawing yet, retrying in 100ms...');
+            setTimeout(function () {
+                self.startDrawing(geomType, strokeColor, fillColor, layerId);
+            }, 100);
+            return;
+        }
+
+        this.stopInteractionOnly();
+
+        layerId = layerId || 'default';
+        window._currentDraftLayerId = layerId;
+
+        if (!window._draftVectorLayers[layerId]) {
+            const source = new ol.source.Vector();
+            const layer = new ol.layer.Vector({
+                source: source,
+                style: new ol.style.Style({
+                    fill: new ol.style.Fill({ color: fillColor || 'rgba(59, 130, 246, 0.25)' }),
+                    stroke: new ol.style.Stroke({ color: strokeColor || '#3b82f6', width: 3 }),
+                    image: new ol.style.Circle({
+                        radius: 7,
+                        fill: new ol.style.Fill({ color: strokeColor || '#3b82f6' }),
+                        stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 })
+                    })
+                }),
+                zIndex: 998
+            });
+            map.addLayer(layer);
+            window._draftVectorLayers[layerId] = {
+                source: source,
+                layer: layer,
+                strokeColor: strokeColor,
+                fillColor: fillColor,
+                undoStack: [],
+                redoStack: []
+            };
+        }
+
+        const currentDraft = window._draftVectorLayers[layerId];
+        window._drawSource = currentDraft.source;
+
+        let olGeomType = 'Polygon';
+        if (geomType === 'Line' || geomType === 'LineString') olGeomType = 'LineString';
+        else if (geomType === 'Point') olGeomType = 'Point';
+        else if (geomType === 'Polygon') olGeomType = 'Polygon';
+
+        window._drawInteraction = new ol.interaction.Draw({
+            source: window._drawSource,
+            type: olGeomType
+        });
+
+        window._drawRedoStack = [];
+        window._activeSketchGeometry = null;
+
+        window._drawInteraction.on('drawstart', function (evt) {
+            window._drawRedoStack = [];
+            window._activeSketchGeometry = evt.feature.getGeometry();
+        });
+
+        window._drawInteraction.on('drawend', function (evt) {
+            if (evt.feature && currentDraft) {
+                currentDraft.undoStack.push(evt.feature);
+                currentDraft.redoStack = [];
+            }
+            window._activeSketchGeometry = null;
+        });
+
+        window._modifyInteraction = new ol.interaction.Modify({
+            source: window._drawSource
+        });
+
+        map.addInteraction(window._drawInteraction);
+        map.addInteraction(window._modifyInteraction);
+    },
+
+    stopInteractionOnly: function () {
+        const map = window.activeOlMap;
+        if (map) {
+            if (window._drawInteraction) {
+                map.removeInteraction(window._drawInteraction);
+                window._drawInteraction = null;
+            }
+            if (window._modifyInteraction) {
+                map.removeInteraction(window._modifyInteraction);
+                window._modifyInteraction = null;
+            }
+        }
+        window._drawRedoStack = [];
+        window._activeSketchGeometry = null;
+    },
+
+    stopDrawing: function () {
+        this.stopInteractionOnly();
+        const map = window.activeOlMap;
+        if (map && window._draftVectorLayers) {
+            Object.keys(window._draftVectorLayers).forEach(function (id) {
+                try {
+                    map.removeLayer(window._draftVectorLayers[id].layer);
+                } catch (e) { }
+            });
+        }
+        window._draftVectorLayers = {};
+        window._drawSource = null;
+        window._currentDraftLayerId = null;
+    },
+
+    removeDraftLayer: function (layerId) {
+        const map = window.activeOlMap;
+        if (layerId === window._currentDraftLayerId) {
+            this.stopInteractionOnly();
+        }
+        if (map && window._draftVectorLayers && window._draftVectorLayers[layerId]) {
+            try {
+                map.removeLayer(window._draftVectorLayers[layerId].layer);
+            } catch (e) { }
+            delete window._draftVectorLayers[layerId];
+        }
+    },
+
+    undoDrawPoint: function () {
+        const currentDraft = window._currentDraftLayerId ? window._draftVectorLayers[window._currentDraftLayerId] : null;
+
+        let undoneSketch = false;
+        if (window._drawInteraction && window._activeSketchGeometry) {
+            try {
+                const coords = window._activeSketchGeometry.getCoordinates();
+                const ring = Array.isArray(coords[0]) ? coords[0] : coords;
+                if (ring && ring.length > 2) {
+                    window._drawInteraction.removeLastPoint();
+                    undoneSketch = true;
+                    console.log('[uspsim2d5] Undone last vertex in active sketch.');
+                }
+            } catch (e) { }
+        }
+
+        if (!undoneSketch && currentDraft) {
+            const features = currentDraft.source.getFeatures();
+            if (features && features.length > 0) {
+                const lastFeature = currentDraft.undoStack.length > 0 ? currentDraft.undoStack.pop() : features[features.length - 1];
+                if (lastFeature) {
+                    try { currentDraft.source.removeFeature(lastFeature); } catch (e) { }
+                    currentDraft.redoStack.push(lastFeature);
+                    console.log('[uspsim2d5] Undone finalized feature/point placement.');
+                }
+            }
+        }
+    },
+
+    redoDrawPoint: function () {
+        const currentDraft = window._currentDraftLayerId ? window._draftVectorLayers[window._currentDraftLayerId] : null;
+
+        if (currentDraft && currentDraft.redoStack && currentDraft.redoStack.length > 0) {
+            const redoFeature = currentDraft.redoStack.pop();
+            if (redoFeature) {
+                currentDraft.source.addFeature(redoFeature);
+                currentDraft.undoStack.push(redoFeature);
+                console.log('[uspsim2d5] Redone finalized feature/point placement.');
+                return;
+            }
+        }
+
+        if (window._drawInteraction && window._drawRedoStack && window._drawRedoStack.length > 0) {
+            try {
+                const coord = window._drawRedoStack.pop();
+                if (coord) {
+                    window._drawInteraction.appendCoordinates([coord]);
+                    console.log('[uspsim2d5] Redone sketch vertex point.');
+                }
+            } catch (e) {
+                console.warn('[uspsim2d5] Unable to redo sketch point:', e);
+            }
+        }
+    },
+
+    getDrawnGeoJsonForLayer: function (layerId) {
+        const map = window.activeOlMap;
+        if (!map || !window._draftVectorLayers || !window._draftVectorLayers[layerId]) return null;
+        const source = window._draftVectorLayers[layerId].source;
+        const features = source.getFeatures();
+        if (!features || features.length === 0) return null;
+        const geojsonFormat = new ol.format.GeoJSON();
+        return geojsonFormat.writeFeatures(features, {
+            dataProjection: 'EPSG:4326',
+            featureProjection: map.getView().getProjection()
+        });
+    },
+
+    getDrawnGeoJson: function () {
+        if (window._currentDraftLayerId) {
+            return this.getDrawnGeoJsonForLayer(window._currentDraftLayerId);
+        }
+        return null;
+    },
+
+    renderPlanFeatures: function (featuresPayloadList, fallbackColor) {
+        this.clearPlanHighlight();
+        const map = window.activeOlMap;
+        if (!map || !featuresPayloadList) return;
+
+        try {
+            const geojsonFormat = new ol.format.GeoJSON();
+
+            if (!window._highlightSource) {
+                window._highlightSource = new ol.source.Vector();
+                window._highlightLayer = new ol.layer.Vector({
+                    source: window._highlightSource,
+                    style: function (feature) {
+                        const color = feature.get('_planColor') || fallbackColor || '#10b981';
+                        const isPulsing = feature.get('_isPulsing');
+                        const pulseScale = feature.get('_pulseScale') || 1.0;
+
+                        if (isPulsing) {
+                            return new ol.style.Style({
+                                fill: new ol.style.Fill({ color: 'rgba(245, 158, 11, ' + (0.45 * pulseScale) + ')' }),
+                                stroke: new ol.style.Stroke({
+                                    color: '#f59e0b',
+                                    width: Math.round(5 * pulseScale)
+                                }),
+                                image: new ol.style.Circle({
+                                    radius: Math.round(9 * pulseScale),
+                                    fill: new ol.style.Fill({ color: '#f59e0b' }),
+                                    stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 })
+                                })
+                            });
+                        }
+
+                        return new ol.style.Style({
+                            fill: new ol.style.Fill({ color: 'rgba(16, 185, 129, 0.30)' }),
+                            stroke: new ol.style.Stroke({ color: color, width: 4 }),
+                            image: new ol.style.Circle({
+                                radius: 8,
+                                fill: new ol.style.Fill({ color: color }),
+                                stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 })
+                            })
+                        });
+                    },
+                    zIndex: 995
+                });
+                map.addLayer(window._highlightLayer);
+            }
+
+            window._highlightSource.clear();
+
+            const allFeatures = [];
+            if (typeof featuresPayloadList === 'string') {
+                const features = geojsonFormat.readFeatures(featuresPayloadList, {
+                    dataProjection: 'EPSG:4326',
+                    featureProjection: map.getView().getProjection()
+                });
+                features.forEach(function (f) { allFeatures.push(f); });
+            } else if (Array.isArray(featuresPayloadList)) {
+                featuresPayloadList.forEach(function (item) {
+                    if (item.geoJson) {
+                        const feats = geojsonFormat.readFeatures(item.geoJson, {
+                            dataProjection: 'EPSG:4326',
+                            featureProjection: map.getView().getProjection()
+                        });
+                        feats.forEach(function (f) {
+                            if (item.color) f.set('_planColor', item.color);
+                            allFeatures.push(f);
+                        });
+                    }
+                });
+            }
+
+            allFeatures.forEach(function (f) {
+                f.set('_isPulsing', true);
+                f.set('_pulseScale', 1.0);
+            });
+            window._highlightSource.addFeatures(allFeatures);
+
+            // 2-second glowing pulse animation (2000ms)
+            if (window._pulseTimer) {
+                clearInterval(window._pulseTimer);
+            }
+            let elapsed = 0;
+            const duration = 2000;
+            const interval = 50;
+
+            window._pulseTimer = setInterval(function () {
+                elapsed += interval;
+                const progress = elapsed / duration;
+                // Sine wave pulse effect (2 pulses over 2 seconds)
+                const pulseScale = 1.0 + 0.6 * Math.sin(progress * Math.PI * 4);
+
+                allFeatures.forEach(function (f) {
+                    f.set('_pulseScale', pulseScale);
+                });
+                if (window._highlightLayer) {
+                    window._highlightLayer.changed();
+                }
+
+                if (elapsed >= duration) {
+                    clearInterval(window._pulseTimer);
+                    window._pulseTimer = null;
+                    allFeatures.forEach(function (f) {
+                        f.set('_isPulsing', false);
+                        f.set('_pulseScale', 1.0);
+                    });
+                    if (window._highlightLayer) {
+                        window._highlightLayer.changed();
+                    }
+                }
+            }, interval);
+
+            map.render();
+        } catch (err) {
+            console.error('[uspsim2d5] Error rendering plan features:', err);
+        }
+    },
+
+    clearPlanHighlight: function () {
+        if (window._pulseTimer) {
+            clearInterval(window._pulseTimer);
+            window._pulseTimer = null;
+        }
+        if (window._highlightSource) {
+            window._highlightSource.clear();
         }
     }
 };
