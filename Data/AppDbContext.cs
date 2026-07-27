@@ -25,7 +25,7 @@ public class AppDbContext : DbContext
         base.OnModelCreating(modelBuilder);
 
         modelBuilder.Entity<User>().HasData(
-            new User { Id = 1, Username = "Admin", Email = "harald.warmelink@hu.nl", PasswordHash = "" }
+            new User { Id = 1, Username = "Admin", Email = "harald.warmelink@hu.nl", PasswordHash = "AQAAAAIAAYagAAAAEKstQTVmO/0bmR5/P2B+mTIYP9Ju76yHdGFRYt7uq9Im2XkmV3pwZpvDAMTmlgzY3w==" }
         );
 
         modelBuilder.Entity<Team>()

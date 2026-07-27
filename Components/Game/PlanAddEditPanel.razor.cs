@@ -373,4 +373,16 @@ public partial class PlanAddEditPanel : ComponentBase
             Console.WriteLine($"[PlanAddEditPanel] Error invoking redoDrawPoint: {ex.Message}");
         }
     }
+
+    protected async Task DeletePointAsync()
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("uspsim2d5.deleteSelectedVertex");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[PlanAddEditPanel] Error invoking deleteSelectedVertex: {ex.Message}");
+        }
+    }
 }

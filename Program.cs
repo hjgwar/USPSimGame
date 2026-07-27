@@ -128,6 +128,13 @@ app.MapGet("/api/layers/{sessionId:int}/{layerKey}", async (int sessionId, strin
     return Results.Content(layer.CachedDataContent, "application/json");
 });
 
+app.MapGet("/api/teams/session/{sessionId:int}", async (int sessionId, ITeamService teamService) =>
+{
+    var teams = await teamService.GetTeamsByGameSessionAsync(sessionId);
+    var payload = teams.Select(t => new { id = t.Id, name = t.Name, color = t.Color, areaDefinition = t.AreaDefinition });
+    return Results.Ok(payload);
+});
+
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();

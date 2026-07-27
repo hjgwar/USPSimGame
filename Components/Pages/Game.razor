@@ -1,5 +1,6 @@
 @page "/game"
 @using USPSimGame.Components.Game
+@using USPSimGame.Data.Enums
 @rendermode InteractiveServer
 
 <PageTitle>Game - @(PlayerSessionState.CurrentGameSession?.Name ?? "Simulation")</PageTitle>
@@ -21,6 +22,8 @@ else
     <PlansControlPanel @ref="plansControlPanel"
                       GameSessionId="@(PlayerSessionState.CurrentGameSession?.Id ?? 0)"
                       CurrentTeamId="@(PlayerSessionState.CurrentTeam?.Id ?? 0)"
+                      GameState="@(PlayerSessionState.CurrentGameSession?.State ?? GameState.Setup)"
+                      IsAdmin="@PlayerSessionState.IsAdmin"
                       StartYear="@(PlayerSessionState.CurrentGameSession?.StartYear ?? 2026)"
                       ActivePlan="@ActivePlan"
                       OnOpenNewPlan="OpenNewPlanPanel"
@@ -29,8 +32,16 @@ else
     <!-- Map Layers & Legend Panel (Bottom Left) -->
     <MapControlPanel GameSessionId="@(PlayerSessionState.CurrentGameSession?.Id ?? 0)" />
 
+    <!-- Team Area Definition Panel (Bottom Right during Setup State for Players) -->
+    @if (!PlayerSessionState.IsAdmin && PlayerSessionState.CurrentGameSession?.State == GameState.Setup && !ShowPlanAddEditPanel && ActivePlan == null && PlayerSessionState.CurrentTeam != null)
+    {
+        <TeamAreaPanel GameSessionId="@(PlayerSessionState.CurrentGameSession?.Id ?? 0)"
+                       Team="@PlayerSessionState.CurrentTeam"
+                       CurrentPlayerSessionId="@(PlayerSessionState.CurrentPlayerSession?.Id ?? 0)" />
+    }
+
     <!-- Plan Add & Edit Panel (Bottom Right) -->
-    @if (ShowPlanAddEditPanel)
+    @if (!PlayerSessionState.IsAdmin && ShowPlanAddEditPanel)
     {
         <PlanAddEditPanel GameSessionId="@(PlayerSessionState.CurrentGameSession?.Id ?? 0)"
                           TeamId="@(PlayerSessionState.CurrentTeam?.Id ?? 0)"

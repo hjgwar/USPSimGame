@@ -480,12 +480,21 @@ namespace USPSimGame.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("AreaDefinition")
+                        .HasColumnType("text");
+
                     b.Property<string>("Color")
                         .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<int>("GameSessionId")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime?>("LockedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LockedBySessionId")
+                        .HasColumnType("text");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -531,7 +540,7 @@ namespace USPSimGame.Migrations
                         {
                             Id = 1,
                             Email = "harald.warmelink@hu.nl",
-                            PasswordHash = "",
+                            PasswordHash = "AQAAAAIAAYagAAAAEKstQTVmO/0bmR5/P2B+mTIYP9Ju76yHdGFRYt7uq9Im2XkmV3pwZpvDAMTmlgzY3w==",
                             Username = "Admin"
                         });
                 });

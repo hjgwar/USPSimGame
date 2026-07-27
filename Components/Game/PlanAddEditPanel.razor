@@ -91,39 +91,15 @@
                         }
                         @if (currentLayer != null)
                         {
-                            <div class="p-2 rounded-3 bg-light border d-flex align-items-center justify-content-between mb-2">
-                                <div class="d-flex align-items-center gap-2">
-                                    <div class="rounded-circle p-2 d-flex align-items-center justify-content-center text-white" style="background-color: @(currentLayer.PlannableLayerDefinition.DefaultColor ?? "#3b82f6"); width: 32px; height: 32px;">
-                                        <i class="bi @(currentLayer.PlannableLayerDefinition.Icon ?? "bi-layers-fill") small mb-0"></i>
-                                    </div>
-                                    <div>
-                                        <span class="badge bg-warning-subtle text-dark border border-warning-subtle micro-text me-1">
-                                            @currentLayer.PlannableLayerDefinition.GeometryType
-                                        </span>
-                                        <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle micro-text">
-                                            @currentLayer.PlannableLayerDefinition.Category
-                                        </span>
-                                    </div>
-                                </div>
-                                <span class="badge bg-success-subtle text-success border border-success-subtle micro-text animate-pulse">
-                                    <i class="bi bi-pencil me-1"></i>Drawing Active
-                                </span>
-                            </div>
-
-                            <!-- Undo / Redo Point Controls -->
-                            <div class="d-flex align-items-center justify-content-between p-2 rounded-3 bg-white border">
-                                <small class="fw-semibold text-muted micro-text">
-                                    <i class="bi bi-vector-pen me-1 text-primary"></i>Drawing Controls:
-                                </small>
-                                <div class="d-flex gap-2">
-                                    <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 rounded-pill undo-redo-btn" @onclick="UndoPointAsync" title="Undo last drawn point">
-                                        <i class="bi bi-arrow-counterclockwise me-1 text-primary"></i>Undo
-                                    </button>
-                                    <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 rounded-pill undo-redo-btn" @onclick="RedoPointAsync" title="Redo last point">
-                                        <i class="bi bi-arrow-clockwise me-1 text-primary"></i>Redo
-                                    </button>
-                                </div>
-                            </div>
+                            <GeometryDrawControls LayerName="@currentLayer.PlannableLayerDefinition.Name"
+                                                 GeometryType="@currentLayer.PlannableLayerDefinition.GeometryType.ToString()"
+                                                 Category="@currentLayer.PlannableLayerDefinition.Category.ToString()"
+                                                 Color="@(currentLayer.PlannableLayerDefinition.DefaultColor ?? "#3b82f6")"
+                                                 Icon="@(currentLayer.PlannableLayerDefinition.Icon ?? "bi-layers-fill")"
+                                                 IsActive="true"
+                                                 OnUndoPoint="UndoPointAsync"
+                                                 OnRedoPoint="RedoPointAsync"
+                                                 OnDeletePoint="DeletePointAsync" />
                         }
                     </div>
 

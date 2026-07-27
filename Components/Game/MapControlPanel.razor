@@ -57,6 +57,19 @@
                     else
                     {
                         <div class="d-flex flex-column gap-2">
+                            <!-- Existing Team Areas Toggle -->
+                            <div class="card border-0 shadow-sm p-3 rounded-3 bg-white layer-item @(ShowTeamAreas ? "border-start border-primary border-3" : "")">
+                                <div class="form-check form-switch d-flex align-items-center justify-content-between ps-0 mb-0">
+                                    <label class="form-check-label flex-grow-1 cursor-pointer me-2" for="switch-team-areas">
+                                        <div class="fw-bold text-dark small mb-1">Existing Team Areas</div>
+                                        <div>
+                                            <span class="badge bg-primary-subtle text-primary me-1">Territory Boundaries</span>
+                                        </div>
+                                    </label>
+                                    <input class="form-check-input ms-0 cursor-pointer" type="checkbox" role="switch" id="switch-team-areas" checked="@ShowTeamAreas" @onchange="(e) => ToggleTeamAreasVisibilityAsync((bool)e.Value!)" />
+                                </div>
+                            </div>
+
                             @foreach (var layer in SessionLayers)
                             {
                                 bool isVisible = LayerVisibilities.TryGetValue(layer.LayerDefinition.Key, out bool vis) ? vis : true;
@@ -85,16 +98,44 @@
                         <small class="text-muted italic extra-small">Drag or use arrows to reorder z-index</small>
                     </div>
 
-                    @if (!OrderedVisibleLayers.Any())
-                    {
-                        <div class="text-center py-4 text-muted small">
-                            <i class="bi bi-eye-slash d-block display-6 mb-2 text-secondary"></i>
-                            No layers currently selected. Select layers in the <strong>Layers</strong> tab to view legend.
-                        </div>
-                    }
-                    else
-                    {
-                        <div class="d-flex flex-column gap-2">
+                    <div class="d-flex flex-column gap-2">
+                        @if (ShowTeamAreas && SessionTeams.Any())
+                        {
+                            <div class="card border rounded-3 bg-white p-3 shadow-sm mb-1">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="badge bg-primary-subtle text-primary rounded-circle layer-badge-number">
+                                            <i class="bi bi-shield-shaded"></i>
+                                        </span>
+                                        <strong class="text-dark small">Existing Team Areas</strong>
+                                    </div>
+                                    <span class="badge bg-primary-subtle text-primary extra-small">Territories</span>
+                                </div>
+                                <div class="legend-box bg-light p-2 rounded-2 border">
+                                    <div class="d-flex flex-column gap-1 extra-small">
+                                        @foreach (var team in SessionTeams)
+                                        {
+                                            <div class="d-flex align-items-center gap-2">
+                                                <span style="display:inline-block; width:12px; height:12px; border-radius:50%; background-color:@team.Color; border: 1px solid rgba(0,0,0,0.2); flex-shrink: 0;"></span>
+                                                <span class="fw-semibold text-dark">@team.Name</span>
+                                            </div>
+                                        }
+                                        <div class="d-flex align-items-center gap-2 mt-1 pt-1 border-top border-secondary-subtle">
+                                            <span style="display:inline-block; width:18px; height:12px; border-radius:2px; background: repeating-linear-gradient(45deg, #e6302b, #e6302b 4px, #146be2 4px, #146be2 8px); border: 1px solid rgba(0,0,0,0.2); flex-shrink: 0;"></span>
+                                            <span class="text-muted italic">Striped: Overlapping Team Area</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+
+                        @if (!OrderedVisibleLayers.Any() && (!ShowTeamAreas || !SessionTeams.Any()))
+                        {
+                            <div class="text-center py-4 text-muted small">
+                                <i class="bi bi-eye-slash d-block display-6 mb-2 text-secondary"></i>
+                                No layers currently selected. Select layers in the <strong>Layers</strong> tab to view legend.
+                            </div>
+                        }
                             @for (int index = 0; index < OrderedVisibleLayers.Count; index++)
                             {
                                 var layer = OrderedVisibleLayers[index];

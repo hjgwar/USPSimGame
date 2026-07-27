@@ -22,6 +22,12 @@ public partial class Game : ComponentBase
     public IPlanService PlanService { get; set; } = default!;
 
     [Inject]
+    public ITeamService TeamService { get; set; } = default!;
+
+    [Inject]
+    public IGameSessionService GameSessionService { get; set; } = default!;
+
+    [Inject]
     public IJSRuntime JSRuntime { get; set; } = default!;
 
     [Inject]
@@ -102,12 +108,33 @@ public partial class Game : ComponentBase
                             await JSRuntime.InvokeVoidAsync("uspsim2d5.loadSessionLayer", session.Id, layer.LayerDefinition.Key);
                         }
                     }
+                    TeamService.OnTeamAreaChanged += HandleTeamAreaChangedAsync;
+                    GameSessionService.OnGameSessionStateChanged += HandleGameSessionStateChangedAsync;
+                    await JSRuntime.InvokeVoidAsync("uspsim2d5.refreshTeamAreas", session.Id);
                 }
                 catch (Exception ex)
                 {
                     Logger.LogError(ex, "Game.razor: Error triggering session layer HTTP streams.");
                 }
             }
+        }
+    }
+
+    private async Task HandleTeamAreaChangedAsync(int sessionId)
+    {
+        if (PlayerSessionState.CurrentGameSession?.Id == sessionId)
+        {
+            await JSRuntime.InvokeVoidAsync("uspsim2d5.refreshTeamAreas", sessionId);
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task HandleGameSessionStateChangedAsync(int sessionId, Data.Enums.GameState newState)
+    {
+        if (PlayerSessionState.CurrentGameSession?.Id == sessionId)
+        {
+            PlayerSessionState.CurrentGameSession.State = newState;
+            await InvokeAsync(StateHasChanged);
         }
     }
 

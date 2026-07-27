@@ -118,7 +118,10 @@ namespace USPSimGame.Migrations
                     GameSessionId = table.Column<int>(type: "integer", nullable: false),
                     Name = table.Column<string>(type: "text", nullable: false),
                     PasswordHash = table.Column<string>(type: "text", nullable: false),
-                    Color = table.Column<string>(type: "text", nullable: false)
+                    Color = table.Column<string>(type: "text", nullable: false),
+                    AreaDefinition = table.Column<string>(type: "text", nullable: true),
+                    LockedBySessionId = table.Column<string>(type: "text", nullable: true),
+                    LockedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -281,7 +284,7 @@ namespace USPSimGame.Migrations
             migrationBuilder.InsertData(
                 table: "Users",
                 columns: new[] { "Id", "Email", "PasswordHash", "Username" },
-                values: new object[] { 1, "harald.warmelink@hu.nl", "", "Admin" });
+                values: new object[] { 1, "harald.warmelink@hu.nl", "AQAAAAIAAYagAAAAEKstQTVmO/0bmR5/P2B+mTIYP9Ju76yHdGFRYt7uq9Im2XkmV3pwZpvDAMTmlgzY3w==", "Admin" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_GameSessionMapLayers_GameSessionId",

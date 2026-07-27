@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Components;
 using USPSimGame.Data.Entities;
+using USPSimGame.Data.Enums;
 using USPSimGame.Services.Plans;
 
 namespace USPSimGame.Components.Game;
@@ -14,6 +15,12 @@ public partial class PlansControlPanel : ComponentBase, IDisposable
 
     [Parameter]
     public int StartYear { get; set; } = 2026;
+
+    [Parameter]
+    public GameState GameState { get; set; } = GameState.Setup;
+
+    [Parameter]
+    public bool IsAdmin { get; set; }
 
     [Parameter]
     public int CurrentTeamId { get; set; }

@@ -441,17 +441,75 @@ window.uspsim2d5 = {
 
         if (!window._draftVectorLayers[layerId]) {
             const source = new ol.source.Vector();
+            const strokeCol = strokeColor || '#3b82f6';
+            const fillCol = fillColor || 'rgba(59, 130, 246, 0.25)';
+
             const layer = new ol.layer.Vector({
                 source: source,
-                style: new ol.style.Style({
-                    fill: new ol.style.Fill({ color: fillColor || 'rgba(59, 130, 246, 0.25)' }),
-                    stroke: new ol.style.Stroke({ color: strokeColor || '#3b82f6', width: 3 }),
-                    image: new ol.style.Circle({
-                        radius: 7,
-                        fill: new ol.style.Fill({ color: strokeColor || '#3b82f6' }),
-                        stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 })
-                    })
-                }),
+                style: function (feature) {
+                    const mainStyle = new ol.style.Style({
+                        fill: new ol.style.Fill({ color: fillCol }),
+                        stroke: new ol.style.Stroke({ color: strokeCol, width: 3 }),
+                        image: new ol.style.Circle({
+                            radius: 7,
+                            fill: new ol.style.Fill({ color: strokeCol }),
+                            stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 })
+                        })
+                    });
+
+                    const styles = [mainStyle];
+                    const geom = feature.getGeometry();
+                    if (geom) {
+                        let coords = [];
+                        const type = geom.getType();
+                        if (type === 'Polygon') {
+                            const rings = geom.getCoordinates();
+                            if (rings && rings[0]) {
+                                coords = rings[0].slice(0, rings[0].length - 1);
+                            }
+                        } else if (type === 'LineString') {
+                            coords = geom.getCoordinates();
+                        }
+
+                        if (coords && coords.length > 0) {
+                            const vertexGeom = new ol.geom.MultiPoint(coords);
+                            const vertexStyle = new ol.style.Style({
+                                geometry: vertexGeom,
+                                image: new ol.style.Circle({
+                                    radius: 5,
+                                    fill: new ol.style.Fill({ color: '#ffffff' }),
+                                    stroke: new ol.style.Stroke({ color: strokeCol, width: 2.5 })
+                                })
+                            });
+                            styles.push(vertexStyle);
+                        }
+                    }
+
+                    const sel = window._selectedDraftVertex;
+                    if (sel && sel.feature === feature) {
+                        let selCoord = sel.coordinate;
+                        if (!selCoord && geom) {
+                            if (geom.getType() === 'Point') {
+                                selCoord = geom.getCoordinates();
+                            }
+                        }
+
+                        if (selCoord) {
+                            const selGeom = new ol.geom.Point(selCoord);
+                            const selStyle = new ol.style.Style({
+                                geometry: selGeom,
+                                image: new ol.style.Circle({
+                                    radius: 10,
+                                    fill: new ol.style.Fill({ color: 'rgba(245, 158, 11, 0.45)' }),
+                                    stroke: new ol.style.Stroke({ color: '#f59e0b', width: 3 })
+                                })
+                            });
+                            styles.push(selStyle);
+                        }
+                    }
+
+                    return styles;
+                },
                 zIndex: 998
             });
             map.addLayer(layer);
@@ -500,6 +558,133 @@ window.uspsim2d5 = {
 
         map.addInteraction(window._drawInteraction);
         map.addInteraction(window._modifyInteraction);
+
+        if (!window._draftMapClickListener) {
+            window._draftMapClickListener = function (evt) {
+                const activeLayerId = window._currentDraftLayerId;
+                if (!activeLayerId || !window._draftVectorLayers || !window._draftVectorLayers[activeLayerId]) return;
+                const draft = window._draftVectorLayers[activeLayerId];
+                const activeMap = window.activeOlMap;
+                if (!activeMap) return;
+
+                const clickCoord = evt.coordinate;
+                let foundSelection = null;
+                const toleranceMeters = activeMap.getView().getResolution() * 14;
+
+                const features = draft.source.getFeatures();
+                for (let fIdx = 0; fIdx < features.length; fIdx++) {
+                    const feat = features[fIdx];
+                    const geom = feat.getGeometry();
+                    if (!geom) continue;
+                    const type = geom.getType();
+
+                    if (type === 'Point') {
+                        const pCoord = geom.getCoordinates();
+                        const dist = Math.hypot(pCoord[0] - clickCoord[0], pCoord[1] - clickCoord[1]);
+                        if (dist <= toleranceMeters) {
+                            foundSelection = {
+                                feature: feat,
+                                geomType: 'Point',
+                                vertexIndex: -1,
+                                coordinate: pCoord
+                            };
+                            break;
+                        }
+                    } else if (type === 'LineString') {
+                        const coords = geom.getCoordinates();
+                        for (let i = 0; i < coords.length; i++) {
+                            const c = coords[i];
+                            const dist = Math.hypot(c[0] - clickCoord[0], c[1] - clickCoord[1]);
+                            if (dist <= toleranceMeters) {
+                                foundSelection = {
+                                    feature: feat,
+                                    geomType: 'LineString',
+                                    vertexIndex: i,
+                                    coordinate: c
+                                };
+                                break;
+                            }
+                        }
+                    } else if (type === 'Polygon') {
+                        const rings = geom.getCoordinates();
+                        if (rings && rings[0]) {
+                            const ring = rings[0];
+                            const distinctLen = ring.length - 1;
+                            for (let i = 0; i < distinctLen; i++) {
+                                const c = ring[i];
+                                const dist = Math.hypot(c[0] - clickCoord[0], c[1] - clickCoord[1]);
+                                if (dist <= toleranceMeters) {
+                                    foundSelection = {
+                                        feature: feat,
+                                        geomType: 'Polygon',
+                                        vertexIndex: i,
+                                        coordinate: c
+                                    };
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    if (foundSelection) break;
+                }
+
+                window._selectedDraftVertex = foundSelection;
+                draft.source.changed();
+            };
+
+            map.on('singleclick', window._draftMapClickListener);
+        }
+    },
+
+    deleteSelectedVertex: function () {
+        const sel = window._selectedDraftVertex;
+        const layerId = window._currentDraftLayerId;
+        if (!sel || !layerId || !window._draftVectorLayers || !window._draftVectorLayers[layerId]) {
+            console.warn('[uspsim2d5] No draft vertex or point selected for deletion.');
+            return false;
+        }
+
+        const draft = window._draftVectorLayers[layerId];
+        const feat = sel.feature;
+        const geom = feat.getGeometry();
+        if (!geom) return false;
+
+        const type = sel.geomType;
+
+        if (type === 'Point') {
+            draft.source.removeFeature(feat);
+            console.log('[uspsim2d5] Deleted selected Point feature.');
+        } else if (type === 'LineString') {
+            const coords = geom.getCoordinates();
+            if (coords.length - 1 < 2) {
+                draft.source.removeFeature(feat);
+                console.log('[uspsim2d5] LineString points < 2, removed entire line feature.');
+            } else {
+                coords.splice(sel.vertexIndex, 1);
+                geom.setCoordinates(coords);
+                console.log('[uspsim2d5] Deleted LineString vertex at index', sel.vertexIndex);
+            }
+        } else if (type === 'Polygon') {
+            const rings = geom.getCoordinates();
+            if (rings && rings[0]) {
+                const ring = rings[0];
+                const distinctCoords = ring.slice(0, ring.length - 1);
+
+                if (distinctCoords.length - 1 < 3) {
+                    draft.source.removeFeature(feat);
+                    console.log('[uspsim2d5] Polygon distinct points < 3, removed entire polygon feature.');
+                } else {
+                    distinctCoords.splice(sel.vertexIndex, 1);
+                    distinctCoords.push(distinctCoords[0]);
+                    geom.setCoordinates([distinctCoords]);
+                    console.log('[uspsim2d5] Deleted Polygon vertex at index', sel.vertexIndex);
+                }
+            }
+        }
+
+        window._selectedDraftVertex = null;
+        draft.source.changed();
+        return true;
     },
 
     stopInteractionOnly: function () {
@@ -513,9 +698,14 @@ window.uspsim2d5 = {
                 map.removeInteraction(window._modifyInteraction);
                 window._modifyInteraction = null;
             }
+            if (window._draftMapClickListener) {
+                map.un('singleclick', window._draftMapClickListener);
+                window._draftMapClickListener = null;
+            }
         }
         window._drawRedoStack = [];
         window._activeSketchGeometry = null;
+        window._selectedDraftVertex = null;
     },
 
     stopDrawing: function () {
@@ -769,6 +959,163 @@ window.uspsim2d5 = {
         }
         if (window._highlightSource) {
             window._highlightSource.clear();
+        }
+    },
+
+    hexToRgba: function (hex, alpha) {
+        try {
+            hex = (hex || '#3b82f6').trim().replace('#', '');
+            if (hex.length === 6) {
+                const r = parseInt(hex.substring(0, 2), 16);
+                const g = parseInt(hex.substring(2, 4), 16);
+                const b = parseInt(hex.substring(4, 6), 16);
+                return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+            }
+        } catch (e) { }
+        return `rgba(59, 130, 246, ${alpha})`;
+    },
+
+    createHatchPattern: function (hexColorList, alpha) {
+        const canvas = document.createElement('canvas');
+        const size = 32;
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        const numColors = hexColorList.length;
+        const stripeWidth = size / numColors;
+        const self = this;
+
+        ctx.clearRect(0, 0, size, size);
+
+        for (let i = 0; i < numColors; i++) {
+            const color = self.hexToRgba(hexColorList[i], alpha || 0.45);
+            ctx.fillStyle = color;
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(-size + i * stripeWidth, 0);
+            ctx.lineTo(-size + (i + 1) * stripeWidth, 0);
+            ctx.lineTo(size * 2 + (i + 1) * stripeWidth, size * 3);
+            ctx.lineTo(size * 2 + i * stripeWidth, size * 3);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+        }
+
+        return ctx.createPattern(canvas, 'repeat');
+    },
+
+    renderTeamAreas: function (teamsPayloadList) {
+        const map = window.activeOlMap;
+        if (!map) {
+            window._pendingLayersToRender.push(function () {
+                window.uspsim2d5.renderTeamAreas(teamsPayloadList);
+            });
+            return;
+        }
+
+        const geojsonFormat = new ol.format.GeoJSON();
+        window._teamAreaGeometries = [];
+
+        if (!window._teamAreasSource) {
+            window._teamAreasSource = new ol.source.Vector();
+            window._teamAreasLayer = new ol.layer.Vector({
+                source: window._teamAreasSource,
+                style: function (feature) {
+                    const color = feature.get('_teamColor') || '#3b82f6';
+                    const fillColor = feature.get('_fillColor') || 'rgba(59, 130, 246, 0.30)';
+                    return new ol.style.Style({
+                        fill: new ol.style.Fill({ color: fillColor }),
+                        stroke: new ol.style.Stroke({ color: color, width: 3, lineDash: [6, 4] })
+                    });
+                },
+                zIndex: 990
+            });
+            map.addLayer(window._teamAreasLayer);
+        }
+
+        window._teamAreasSource.clear();
+
+        if (Array.isArray(teamsPayloadList)) {
+            const teamGeomList = [];
+
+            teamsPayloadList.forEach(function (team) {
+                if (team.areaDefinition) {
+                    try {
+                        const feats = geojsonFormat.readFeatures(team.areaDefinition, {
+                            dataProjection: 'EPSG:4326',
+                            featureProjection: map.getView().getProjection()
+                        });
+                        const hexColor = team.color || '#3b82f6';
+
+                        feats.forEach(function (f) {
+                            f.set('_teamName', team.name);
+                            f.set('_teamColor', hexColor);
+
+                            window._teamAreaGeometries.push({
+                                geometry: f.getGeometry(),
+                                color: hexColor,
+                                teamName: team.name
+                            });
+
+                            teamGeomList.push({
+                                feature: f,
+                                teamName: team.name,
+                                color: hexColor,
+                                geometry: f.getGeometry()
+                            });
+                        });
+                    } catch (e) {
+                        console.warn('[uspsim2d5] Error parsing team area GeoJSON:', e);
+                    }
+                }
+            });
+
+            // Detect overlapping polygons across different teams
+            const self = window.uspsim2d5;
+            teamGeomList.forEach(function (item) {
+                const overlappingColors = [item.color];
+
+                teamGeomList.forEach(function (other) {
+                    if (other.teamName !== item.teamName && !overlappingColors.includes(other.color)) {
+                        try {
+                            if (item.geometry.intersectsExtent(other.geometry.getExtent())) {
+                                overlappingColors.push(other.color);
+                            }
+                        } catch (e) { }
+                    }
+                });
+
+                if (overlappingColors.length > 1) {
+                    // Overlapping multi-team area: render alternating diagonal striped hatch pattern
+                    const hatchPattern = self.createHatchPattern(overlappingColors, 0.45);
+                    item.feature.set('_fillColor', hatchPattern);
+                    item.feature.set('_teamColor', overlappingColors[0]);
+                } else {
+                    // Single team area: standard semi-transparent fill
+                    item.feature.set('_fillColor', self.hexToRgba(item.color, 0.30));
+                }
+
+                window._teamAreasSource.addFeature(item.feature);
+            });
+        }
+    },
+
+    toggleTeamAreasVisibility: function (visible) {
+        if (window._teamAreasLayer) {
+            window._teamAreasLayer.setVisible(visible);
+        }
+    },
+
+    refreshTeamAreas: function (sessionId) {
+        const sid = sessionId || window._currentSessionId;
+        if (sid) {
+            fetch(`/api/teams/session/${sid}`)
+                .then(r => r.json())
+                .then(teams => {
+                    window.uspsim2d5.renderTeamAreas(teams);
+                })
+                .catch(e => console.warn('[uspsim2d5] Error fetching team areas:', e));
         }
     }
 };
