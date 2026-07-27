@@ -34,9 +34,14 @@ public partial class PlansControlPanel : ComponentBase, IDisposable
     [Parameter]
     public EventCallback<Plan?> OnPlanSelected { get; set; }
 
+    [Parameter]
+    public bool IsCollapsed { get; set; } = true;
+
+    [Parameter]
+    public EventCallback<bool> OnToggleCollapse { get; set; }
+
     protected List<Plan> Plans { get; set; } = new();
     protected bool IsLoading { get; set; } = true;
-    protected bool IsCollapsed { get; set; } = false;
 
     protected Dictionary<PlanState, bool> ExpandedStateGroups { get; set; } = new();
 
@@ -91,9 +96,10 @@ public partial class PlansControlPanel : ComponentBase, IDisposable
         }
     }
 
-    protected void ToggleCollapse()
+    protected async Task ToggleCollapse()
     {
         IsCollapsed = !IsCollapsed;
+        await OnToggleCollapse.InvokeAsync(IsCollapsed);
     }
 
     protected void ToggleStateGroup(PlanState state)

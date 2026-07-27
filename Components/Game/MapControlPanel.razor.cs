@@ -25,9 +25,13 @@ public partial class MapControlPanel : ComponentBase
     protected Dictionary<string, bool> LayerVisibilities { get; set; } = new();
     protected List<GameSessionMapLayer> OrderedVisibleLayers { get; set; } = new();
 
-    protected bool ShowTeamAreas { get; set; } = true;
+    [Parameter]
+    public bool IsCollapsed { get; set; } = true;
 
-    protected bool IsCollapsed { get; set; } = false;
+    [Parameter]
+    public EventCallback<bool> OnToggleCollapse { get; set; }
+
+    protected bool ShowTeamAreas { get; set; } = true;
     protected string ActiveTab { get; set; } = "layers";
     protected int? DraggedIndex { get; set; }
 
@@ -73,9 +77,10 @@ public partial class MapControlPanel : ComponentBase
         }
     }
 
-    protected void ToggleCollapse()
+    protected async Task ToggleCollapse()
     {
         IsCollapsed = !IsCollapsed;
+        await OnToggleCollapse.InvokeAsync(IsCollapsed);
     }
 
     protected async Task ToggleTeamAreasVisibilityAsync(bool isVisible)

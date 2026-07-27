@@ -17,25 +17,31 @@
                     </span>
                 </div>
             </div>
-            <span class="badge bg-success-subtle text-success border border-success-subtle micro-text animate-pulse">
-                <i class="bi bi-pencil me-1"></i>Drawing Active
-            </span>
         </div>
 
-        <!-- Undo / Redo / Delete Controls -->
+        <!-- Mode Toggle & Drawing Controls -->
         <div class="d-flex align-items-center justify-content-between p-2 rounded-3 bg-white border">
             <small class="fw-semibold text-muted micro-text">
                 <i class="bi bi-vector-pen me-1 text-primary"></i>Controls:
             </small>
-            <div class="d-flex gap-1">
+            <div class="d-flex gap-1 align-items-center">
+                <button type="button" class="btn btn-sm @(IsDrawingActive ? "btn-success" : "btn-outline-primary") py-0 px-2 rounded-pill undo-redo-btn"
+                        @onclick="ToggleDrawingModeAsync"
+                        title="@(IsDrawingActive ? "Pause drawing to inspect & edit data tables" : "Resume placing geometry points")">
+                    <i class="bi @(IsDrawingActive ? "bi-pencil-fill" : "bi-cursor-fill") me-1"></i>
+                    <span class="micro-text fw-bold">@(IsDrawingActive ? "Draw" : "Inspect")</span>
+                </button>
+
                 <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 rounded-pill undo-redo-btn" @onclick="UndoAsync" title="Undo point">
-                    <i class="bi bi-arrow-counterclockwise me-1 text-primary"></i>
+                    <i class="bi bi-arrow-counterclockwise text-primary"></i>
                 </button>
+
                 <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 rounded-pill undo-redo-btn" @onclick="RedoAsync" title="Redo point">
-                    <i class="bi bi-arrow-clockwise me-1 text-primary"></i>
+                    <i class="bi bi-arrow-clockwise text-primary"></i>
                 </button>
+
                 <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2 rounded-pill undo-redo-btn" @onclick="DeletePointAsync" title="Click a point on map to select, then click here to delete">
-                    <i class="bi bi-trash me-1"></i>
+                    <i class="bi bi-trash"></i>
                 </button>
             </div>
         </div>

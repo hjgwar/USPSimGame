@@ -1,9 +1,13 @@
 using Microsoft.AspNetCore.Components;
+using Microsoft.JSInterop;
 
 namespace USPSimGame.Components.Game;
 
 public partial class GeometryDrawControls : ComponentBase
 {
+    [Inject]
+    public IJSRuntime JSRuntime { get; set; } = default!;
+
     [Parameter]
     public string LayerName { get; set; } = "Geometry";
 
@@ -30,6 +34,21 @@ public partial class GeometryDrawControls : ComponentBase
 
     [Parameter]
     public EventCallback OnDeletePoint { get; set; }
+
+    protected bool IsDrawingActive { get; set; } = true;
+
+    protected async Task ToggleDrawingModeAsync()
+    {
+        IsDrawingActive = !IsDrawingActive;
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("uspsim2d5.toggleDrawingActive", IsDrawingActive);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[GeometryDrawControls] Error toggling drawing mode: {ex.Message}");
+        }
+    }
 
     protected async Task UndoAsync()
     {

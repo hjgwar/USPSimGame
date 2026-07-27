@@ -1,4 +1,24 @@
 (function () {
+    // Intercept DotNet / DotNetObjectReference to safely absorb OpenLayers.Blazor internal shape click lookup fallbacks
+    const patchDotNet = function () {
+        if (window.DotNet && window.DotNet.invokeMethodAsync && !window._dotNetInvokePatched) {
+            window._dotNetInvokePatched = true;
+            const origInvoke = window.DotNet.invokeMethodAsync;
+            window.DotNet.invokeMethodAsync = function (assembly, method, ...args) {
+                const p = origInvoke.apply(this, arguments);
+                if (method === 'OnInternalShapeClick') {
+                    return p.catch(function (err) {
+                        return null;
+                    });
+                }
+                return p;
+            };
+        }
+    };
+    patchDotNet();
+    setTimeout(patchDotNet, 100);
+    setTimeout(patchDotNet, 500);
+
     // Intercept ol.Map constructor to capture map instance automatically
     if (window.ol && window.ol.Map && !window.olMapIntercepted) {
         window.olMapIntercepted = true;
@@ -636,6 +656,13 @@ window.uspsim2d5 = {
         }
     },
 
+    toggleDrawingActive: function (active) {
+        if (window._drawInteraction) {
+            window._drawInteraction.setActive(active);
+            console.log('[uspsim2d5] Set drawing interaction active =', active);
+        }
+    },
+
     deleteSelectedVertex: function () {
         const sel = window._selectedDraftVertex;
         const layerId = window._currentDraftLayerId;
@@ -900,6 +927,9 @@ window.uspsim2d5 = {
                         });
                         feats.forEach(function (f) {
                             if (item.color) f.set('_planColor', item.color);
+                            if (item.layerName) f.set('_layerName', item.layerName);
+                            if (item.category) f.set('_category', item.category);
+                            if (item.propertiesJson) f.set('_customPropertiesJson', item.propertiesJson);
                             allFeatures.push(f);
                         });
                     }
@@ -1116,6 +1146,168 @@ window.uspsim2d5 = {
                     window.uspsim2d5.renderTeamAreas(teams);
                 })
                 .catch(e => console.warn('[uspsim2d5] Error fetching team areas:', e));
+        }
+    },
+
+    enableMapFeatureInspection: function (dotNetRef) {
+        window._blazorInspectDotNetRef = dotNetRef;
+        const map = window.activeOlMap;
+        if (!map) return;
+
+        if (window._mapFeatureInspectClickListener) {
+            map.un('singleclick', window._mapFeatureInspectClickListener);
+        }
+
+        window._mapFeatureInspectClickListener = function (evt) {
+            if (window._drawInteraction && window._drawInteraction.getActive()) {
+                return;
+            }
+
+            const pixel = evt.pixel;
+            const clickedFeatures = [];
+
+            map.forEachFeatureAtPixel(pixel, function (feature, layer) {
+                if (!feature) return;
+
+                if (layer === window._featureHighlightLayer) return;
+
+                let layerName = 'Map Feature';
+                let layerKey = 'unknown';
+                let category = 'Base Map';
+                let color = '#3b82f6';
+                let isEditable = false;
+                let layerId = null;
+
+                if (window._draftVectorLayers) {
+                    Object.keys(window._draftVectorLayers).forEach(id => {
+                        if (window._draftVectorLayers[id].layer === layer) {
+                            isEditable = true;
+                            layerId = id;
+                            layerName = feature.get('_layerName') || `Plannable Layer (${id})`;
+                            color = window._draftVectorLayers[id].strokeColor || '#3b82f6';
+                            category = 'Draft Plan Geometry';
+                        }
+                    });
+                }
+
+                if (!isEditable) {
+                    if (layer === window._highlightLayer) {
+                        layerName = feature.get('_layerName') || 'Spatial Plan Geometry';
+                        category = feature.get('_category') || 'Spatial Plan';
+                        color = feature.get('_planColor') || '#10b981';
+                        layerId = 'active_plan_feature';
+                    } else if (layer === window._teamAreasLayer) {
+                        layerName = feature.get('_teamName') || 'Existing Team Area';
+                        category = 'Territory';
+                        color = feature.get('_teamColor') || '#3b82f6';
+                        layerId = 'team_area';
+                    } else if (window._mapLayers) {
+                        Object.keys(window._mapLayers).forEach(k => {
+                            if (window._mapLayers[k] === layer) {
+                                layerKey = k;
+                                layerName = k;
+                                category = 'Base Layer';
+                                layerId = k;
+                            }
+                        });
+                    }
+                }
+
+                const rawProps = feature.getProperties();
+                const cleanProps = {};
+                Object.keys(rawProps).forEach(key => {
+                    if (key !== 'geometry' && !key.startsWith('_')) {
+                        const val = rawProps[key];
+                        if (val !== null && val !== undefined && typeof val !== 'object') {
+                            cleanProps[key] = String(val);
+                        }
+                    }
+                });
+
+                if (rawProps._customPropertiesJson) {
+                    try {
+                        const customObj = JSON.parse(rawProps._customPropertiesJson);
+                        Object.assign(cleanProps, customObj);
+                    } catch (e) { }
+                }
+
+                clickedFeatures.push({
+                    featureId: String(feature.getId() || Math.random()),
+                    layerKey: layerKey,
+                    layerId: layerId || layerKey,
+                    layerName: layerName,
+                    category: category,
+                    color: color,
+                    isEditable: isEditable,
+                    properties: cleanProps,
+                    customEntries: []
+                });
+            }, { hitTolerance: 8 });
+
+            if (clickedFeatures.length > 0 && window._blazorInspectDotNetRef) {
+                const clientX = evt.originalEvent ? evt.originalEvent.clientX : pixel[0];
+                const clientY = evt.originalEvent ? evt.originalEvent.clientY : pixel[1];
+                window._blazorInspectDotNetRef.invokeMethodAsync('OnMapFeaturesInspected', clickedFeatures, clientX, clientY);
+            }
+        };
+
+        map.on('singleclick', window._mapFeatureInspectClickListener);
+    },
+
+    updateDraftFeatureProperties: function (layerId, propertiesJson) {
+        if (window._draftVectorLayers && window._draftVectorLayers[layerId]) {
+            const source = window._draftVectorLayers[layerId].source;
+            const feats = source.getFeatures();
+            if (feats && feats.length > 0) {
+                feats.forEach(f => f.set('_customPropertiesJson', propertiesJson));
+            }
+        }
+    },
+
+    clearFeatureHighlight: function () {
+        if (window._featureHighlightSource) {
+            window._featureHighlightSource.clear();
+        }
+    },
+
+    makeElementDraggable: function (elId) {
+        const el = document.getElementById(elId);
+        if (!el) return;
+
+        const header = el.querySelector('.card-header') || el;
+        let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+
+        header.style.cursor = 'move';
+        header.onmousedown = dragMouseDown;
+
+        function dragMouseDown(e) {
+            e = e || window.event;
+            if (e.target.tagName === 'BUTTON' || e.target.tagName === 'I' || e.target.classList.contains('btn-close')) return;
+            e.preventDefault();
+            pos3 = e.clientX;
+            pos4 = e.clientY;
+            document.onmouseup = closeDragElement;
+            document.onmousemove = elementDrag;
+        }
+
+        function elementDrag(e) {
+            e = e || window.event;
+            e.preventDefault();
+            pos1 = pos3 - e.clientX;
+            pos2 = pos4 - e.clientY;
+            pos3 = e.clientX;
+            pos4 = e.clientY;
+
+            const newTop = Math.max(10, Math.min(window.innerHeight - 80, el.offsetTop - pos2));
+            const newLeft = Math.max(10, Math.min(window.innerWidth - 100, el.offsetLeft - pos1));
+
+            el.style.top = newTop + "px";
+            el.style.left = newLeft + "px";
+        }
+
+        function closeDragElement() {
+            document.onmouseup = null;
+            document.onmousemove = null;
         }
     }
 };

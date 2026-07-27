@@ -3,10 +3,10 @@
 @using USPSimGame.Data.Models
 @using USPSimGame.Services.Layers
 
-<div class="map-control-panel-container position-fixed bottom-0 start-0 m-3 z-3">
-    <div class="card border-0 shadow-lg rounded-4 overflow-hidden map-control-card">
+<div class="map-control-panel-container z-3">
+    <div class="card border-0 shadow-lg rounded-4 overflow-hidden map-control-card d-flex flex-column-reverse">
         <!-- Panel Header -->
-        <div class="card-header bg-transparent border-bottom p-3 d-flex align-items-center justify-content-between">
+        <div class="card-header bg-white border-top p-3 d-flex align-items-center justify-content-between">
             <div class="d-flex align-items-center gap-2">
                 <span class="p-2 rounded-3 bg-primary-subtle text-primary">
                     <i class="bi bi-layers-half h5 mb-0"></i>
@@ -40,7 +40,7 @@
             </div>
 
             <!-- Panel Content -->
-            <div class="card-body p-3 panel-content-body">
+            <div class="card-body p-3 panel-content-body overflow-auto">
                 @if (ActiveTab == "layers")
                 {
                     <div class="text-uppercase text-muted fw-bold extra-small mb-2 tab-section-title">

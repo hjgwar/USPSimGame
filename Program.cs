@@ -16,6 +16,8 @@ builder.Services.AddRazorComponents()
         options.MaximumReceiveMessageSize = 50 * 1024 * 1024; // 50 MB
     });
 
+builder.Services.AddServerSideBlazor().AddCircuitOptions(options => options.DetailedErrors = true);
+
 builder.Services.AddBlazorBootstrap();
 
 // Add Entity Framework Core & PostgreSQL

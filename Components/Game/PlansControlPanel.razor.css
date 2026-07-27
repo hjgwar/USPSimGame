@@ -1,22 +1,26 @@
 .plans-control-panel-container {
-    position: fixed;
-    top: 110px;
-    left: 1rem;
-    width: 320px;
-    max-width: calc(100vw - 32px);
-    z-index: 1030;
+    width: 100%;
 }
 
 .plans-control-card {
     background: rgba(255, 255, 255, 0.94);
     backdrop-filter: blur(16px);
     border: 1px solid rgba(255, 255, 255, 0.6) !important;
-    width: 400px;
-    max-height: 330px;
+    width: 100%;
 }
 
 .panel-content-body {
-    max-height: calc(100vh - 430px);
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.create-plan-btn {
+    width: 32px;
+    height: 32px;
+}
+
+.plan-icon-wrapper {
+    width: 18px;
 }
 
 .state-group-header {

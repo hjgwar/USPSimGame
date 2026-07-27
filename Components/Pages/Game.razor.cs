@@ -10,7 +10,7 @@ using USPSimGame.Services.Plans;
 
 namespace USPSimGame.Components.Pages;
 
-public partial class Game : ComponentBase
+public partial class Game : ComponentBase, IDisposable
 {
     [Inject]
     public PlayerSessionState PlayerSessionState { get; set; } = default!;
@@ -37,11 +37,34 @@ public partial class Game : ComponentBase
     public ILogger<Game> Logger { get; set; } = default!;
 
     protected PlansControlPanel? plansControlPanel;
+    protected MapFeaturePropertiesPanel? propertiesPanel;
+    private DotNetObjectReference<Game>? _dotNetRef;
 
     protected bool ShowPlanAddEditPanel { get; set; } = false;
     protected Plan? PlanToEdit { get; set; }
     protected Plan? ActivePlan { get; set; }
     protected string? LockErrorMessage { get; set; }
+
+    protected bool isPlansPanelCollapsed { get; set; } = true;
+    protected bool isMapPanelCollapsed { get; set; } = true;
+
+    protected void HandlePlansPanelToggle(bool newCollapsed)
+    {
+        isPlansPanelCollapsed = newCollapsed;
+        if (!isPlansPanelCollapsed)
+        {
+            isMapPanelCollapsed = true;
+        }
+    }
+
+    protected void HandleMapPanelToggle(bool newCollapsed)
+    {
+        isMapPanelCollapsed = newCollapsed;
+        if (!isMapPanelCollapsed)
+        {
+            isPlansPanelCollapsed = true;
+        }
+    }
 
     private Coordinate? _initialCenter;
     private double? _initialZoom;
@@ -111,12 +134,25 @@ public partial class Game : ComponentBase
                     TeamService.OnTeamAreaChanged += HandleTeamAreaChangedAsync;
                     GameSessionService.OnGameSessionStateChanged += HandleGameSessionStateChangedAsync;
                     await JSRuntime.InvokeVoidAsync("uspsim2d5.refreshTeamAreas", session.Id);
+
+                    _dotNetRef = DotNetObjectReference.Create(this);
+                    await JSRuntime.InvokeVoidAsync("uspsim2d5.enableMapFeatureInspection", _dotNetRef);
                 }
                 catch (Exception ex)
                 {
                     Logger.LogError(ex, "Game.razor: Error triggering session layer HTTP streams.");
                 }
             }
+        }
+    }
+
+    [JSInvokable]
+    public void OnMapFeaturesInspected(List<Data.Models.InspectedFeatureModel> clickedFeatures, double x, double y)
+    {
+        if (clickedFeatures != null && clickedFeatures.Any() && propertiesPanel != null)
+        {
+            propertiesPanel.Open(clickedFeatures, x, y);
+            InvokeAsync(StateHasChanged);
         }
     }
 
@@ -228,7 +264,10 @@ public partial class Game : ComponentBase
                 .Select(f => new
                 {
                     geoJson = f.GeoJsonGeometry,
-                    color = f.GameSessionPlannableLayer?.PlannableLayerDefinition?.DefaultColor ?? "#10b981"
+                    color = f.GameSessionPlannableLayer?.PlannableLayerDefinition?.DefaultColor ?? "#10b981",
+                    layerName = f.GameSessionPlannableLayer?.PlannableLayerDefinition?.Name ?? "Plan Geometry",
+                    category = f.GameSessionPlannableLayer?.PlannableLayerDefinition?.Category.ToString() ?? "Spatial Plan",
+                    propertiesJson = f.PropertiesJson
                 })
                 .ToList();
 
@@ -269,5 +308,12 @@ public partial class Game : ComponentBase
         {
             Logger.LogWarning(ex, "Game.razor: Error stopping drawing mode.");
         }
+    }
+
+    public void Dispose()
+    {
+        TeamService.OnTeamAreaChanged -= HandleTeamAreaChangedAsync;
+        GameSessionService.OnGameSessionStateChanged -= HandleGameSessionStateChangedAsync;
+        _dotNetRef?.Dispose();
     }
 }

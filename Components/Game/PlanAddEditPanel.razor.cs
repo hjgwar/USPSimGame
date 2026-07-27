@@ -11,6 +11,7 @@ public class DraftFeatureItem
     public int GameSessionPlannableLayerId { get; set; }
     public GameSessionPlannableLayer Layer { get; set; } = default!;
     public string? GeoJsonGeometry { get; set; }
+    public string? PropertiesJson { get; set; }
 }
 
 public partial class PlanAddEditPanel : ComponentBase
@@ -100,7 +101,8 @@ public partial class PlanAddEditPanel : ComponentBase
                         {
                             GameSessionPlannableLayerId = layer.Id,
                             Layer = layer,
-                            GeoJsonGeometry = feat.GeoJsonGeometry
+                            GeoJsonGeometry = feat.GeoJsonGeometry,
+                            PropertiesJson = feat.PropertiesJson
                         });
                     }
                 }
@@ -282,7 +284,8 @@ public partial class PlanAddEditPanel : ComponentBase
                 .Select(f => new PlanFeaturePayload
                 {
                     GameSessionPlannableLayerId = f.GameSessionPlannableLayerId,
-                    GeoJsonGeometry = f.GeoJsonGeometry
+                    GeoJsonGeometry = f.GeoJsonGeometry,
+                    PropertiesJson = f.PropertiesJson
                 })
                 .ToList();
 
