@@ -4,6 +4,5 @@ public enum PlannableGeometryType
 {
     Polygon,
     Line,
-    Point,
-    AttributePolicy
+    Point
 }

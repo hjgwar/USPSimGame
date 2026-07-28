@@ -427,19 +427,6 @@ namespace USPSimGame.Migrations
                             IsEnabledByDefault = true,
                             Key = "transformer-substation",
                             Name = "Transformer Substation"
-                        },
-                        new
-                        {
-                            Id = 6,
-                            Category = "Buildings",
-                            DefaultColor = "#8b5cf6",
-                            DefaultLineWidthPx = 2.0,
-                            Description = "Targeted building policy intervention for thermal envelope and insulation upgrades.",
-                            GeometryType = "AttributePolicy",
-                            Icon = "bi-house-heart-fill",
-                            IsEnabledByDefault = false,
-                            Key = "building-insulation-policy",
-                            Name = "Building Insulation Policy"
                         });
                 });
 

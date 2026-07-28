@@ -65,11 +65,21 @@ public partial class MapControlPanel : ComponentBase
             {
                 if (!LayerVisibilities.ContainsKey(layer.LayerDefinition.Key))
                 {
-                    LayerVisibilities[layer.LayerDefinition.Key] = true;
+                    bool isDefaultOn = layer.LayerDefinition.Key == "pdok-3dbag-buildings" || layer.LayerDefinition.IsEnabledByDefault;
+                    LayerVisibilities[layer.LayerDefinition.Key] = isDefaultOn;
                 }
             }
 
             await UpdateOrderedVisibleLayersAsync();
+
+            foreach (var kvp in LayerVisibilities)
+            {
+                try
+                {
+                    await JSRuntime.InvokeVoidAsync("uspsim2d5.setLayerVisibility", kvp.Key, kvp.Value);
+                }
+                catch { }
+            }
         }
         catch (Exception ex)
         {

@@ -249,19 +249,6 @@ public class AppDbContext : DbContext
                 DefaultColor = "#ef4444",
                 DefaultLineWidthPx = 2.0,
                 IsEnabledByDefault = true
-            },
-            new PlannableLayerDefinition
-            {
-                Id = 6,
-                Key = "building-insulation-policy",
-                Name = "Building Insulation Policy",
-                Description = "Targeted building policy intervention for thermal envelope and insulation upgrades.",
-                Category = MapLayerCategory.Buildings,
-                GeometryType = PlannableGeometryType.AttributePolicy,
-                Icon = "bi-house-heart-fill",
-                DefaultColor = "#8b5cf6",
-                DefaultLineWidthPx = 2.0,
-                IsEnabledByDefault = false
             }
         );
     }

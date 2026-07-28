@@ -404,7 +404,7 @@ window.uspsim2d5 = {
             };
 
             const initialZIndex = window._desiredZIndices[layerKey] ?? 110;
-            const initialVisible = window._desiredVisibilities[layerKey] ?? true;
+            const initialVisible = window._desiredVisibilities[layerKey] ?? false;
 
             const vectorSource = new ol.source.Vector({ features: features });
             const vectorLayer = new ol.layer.Vector({
@@ -1005,36 +1005,6 @@ window.uspsim2d5 = {
         return `rgba(59, 130, 246, ${alpha})`;
     },
 
-    createHatchPattern: function (hexColorList, alpha) {
-        const canvas = document.createElement('canvas');
-        const size = 32;
-        canvas.width = size;
-        canvas.height = size;
-        const ctx = canvas.getContext('2d');
-        const numColors = hexColorList.length;
-        const stripeWidth = size / numColors;
-        const self = this;
-
-        ctx.clearRect(0, 0, size, size);
-
-        for (let i = 0; i < numColors; i++) {
-            const color = self.hexToRgba(hexColorList[i], alpha || 0.45);
-            ctx.fillStyle = color;
-
-            ctx.save();
-            ctx.beginPath();
-            ctx.moveTo(-size + i * stripeWidth, 0);
-            ctx.lineTo(-size + (i + 1) * stripeWidth, 0);
-            ctx.lineTo(size * 2 + (i + 1) * stripeWidth, size * 3);
-            ctx.lineTo(size * 2 + i * stripeWidth, size * 3);
-            ctx.closePath();
-            ctx.fill();
-            ctx.restore();
-        }
-
-        return ctx.createPattern(canvas, 'repeat');
-    },
-
     renderTeamAreas: function (teamsPayloadList) {
         const map = window.activeOlMap;
         if (!map) {
@@ -1067,8 +1037,7 @@ window.uspsim2d5 = {
         window._teamAreasSource.clear();
 
         if (Array.isArray(teamsPayloadList)) {
-            const teamGeomList = [];
-
+            const self = this;
             teamsPayloadList.forEach(function (team) {
                 if (team.areaDefinition) {
                     try {
@@ -1077,10 +1046,12 @@ window.uspsim2d5 = {
                             featureProjection: map.getView().getProjection()
                         });
                         const hexColor = team.color || '#3b82f6';
+                        const fillColor = self.hexToRgba(hexColor, 0.30);
 
                         feats.forEach(function (f) {
                             f.set('_teamName', team.name);
                             f.set('_teamColor', hexColor);
+                            f.set('_fillColor', fillColor);
 
                             window._teamAreaGeometries.push({
                                 geometry: f.getGeometry(),
@@ -1088,45 +1059,12 @@ window.uspsim2d5 = {
                                 teamName: team.name
                             });
 
-                            teamGeomList.push({
-                                feature: f,
-                                teamName: team.name,
-                                color: hexColor,
-                                geometry: f.getGeometry()
-                            });
+                            window._teamAreasSource.addFeature(f);
                         });
                     } catch (e) {
                         console.warn('[uspsim2d5] Error parsing team area GeoJSON:', e);
                     }
                 }
-            });
-
-            // Detect overlapping polygons across different teams
-            const self = window.uspsim2d5;
-            teamGeomList.forEach(function (item) {
-                const overlappingColors = [item.color];
-
-                teamGeomList.forEach(function (other) {
-                    if (other.teamName !== item.teamName && !overlappingColors.includes(other.color)) {
-                        try {
-                            if (item.geometry.intersectsExtent(other.geometry.getExtent())) {
-                                overlappingColors.push(other.color);
-                            }
-                        } catch (e) { }
-                    }
-                });
-
-                if (overlappingColors.length > 1) {
-                    // Overlapping multi-team area: render alternating diagonal striped hatch pattern
-                    const hatchPattern = self.createHatchPattern(overlappingColors, 0.45);
-                    item.feature.set('_fillColor', hatchPattern);
-                    item.feature.set('_teamColor', overlappingColors[0]);
-                } else {
-                    // Single team area: standard semi-transparent fill
-                    item.feature.set('_fillColor', self.hexToRgba(item.color, 0.30));
-                }
-
-                window._teamAreasSource.addFeature(item.feature);
             });
         }
     },

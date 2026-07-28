@@ -277,8 +277,7 @@ namespace USPSimGame.Migrations
                     { 2, "Infrastructure", "#06b6d4", 2.5, "Zoned land polygon area designated for onshore wind turbine installations.", "Polygon", "bi-wind", true, "wind-farm", "Wind Farm Zone", null, null },
                     { 3, "Infrastructure", "#10b981", 2.0, "Public or commercial electric vehicle charging station hub point location.", "Point", "bi-ev-station-fill", true, "ev-charger-hub", "EV Charging Station Hub", null, null },
                     { 4, "Infrastructure", "#3b82f6", 3.5, "High, medium, or low voltage power transmission or distribution line.", "Line", "bi-lightning-charge-fill", true, "power-cable", "Electricity Connection Cable", null, null },
-                    { 5, "Infrastructure", "#ef4444", 2.0, "Electrical grid transformer station or substations for voltage step-down/step-up.", "Point", "bi-box-seam", true, "transformer-substation", "Transformer Substation", null, null },
-                    { 6, "Buildings", "#8b5cf6", 2.0, "Targeted building policy intervention for thermal envelope and insulation upgrades.", "AttributePolicy", "bi-house-heart-fill", false, "building-insulation-policy", "Building Insulation Policy", null, null }
+                    { 5, "Infrastructure", "#ef4444", 2.0, "Electrical grid transformer station or substations for voltage step-down/step-up.", "Point", "bi-box-seam", true, "transformer-substation", "Transformer Substation", null, null }
                 });
 
             migrationBuilder.InsertData(
