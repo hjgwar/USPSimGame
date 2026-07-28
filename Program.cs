@@ -5,6 +5,7 @@ using USPSimGame.Data;
 using USPSimGame.Services;
 using USPSimGame.Services.Layers;
 using USPSimGame.Services.Plans;
+using USPSimGame.Services.Presets;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,6 +29,7 @@ builder.Services.AddDbContextFactory<AppDbContext>(options =>
 
 // Register Application Services
 builder.Services.AddSingleton<IPasswordHasher, PasswordHasherService>();
+builder.Services.AddScoped<IPresetFileService, PresetFileService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IGameSessionService, GameSessionService>();
 builder.Services.AddScoped<ITeamService, TeamService>();
