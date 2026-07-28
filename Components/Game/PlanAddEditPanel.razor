@@ -7,7 +7,7 @@
         <div class="card-header @(IsEditMode ? "bg-primary" : "bg-success") text-white p-3 d-flex align-items-center justify-content-between">
             <div class="d-flex align-items-center gap-2">
                 <i class="bi @(IsEditMode ? "bi-pencil-fill" : "bi-plus-circle-fill") h5 mb-0"></i>
-                <h6 class="fw-bold mb-0">@(IsEditMode ? $"Edit Spatial Plan #{PlanToEdit!.Id}" : "Develop Spatial Plan")</h6>
+                <h6 class="fw-bold mb-0">@(IsEditMode ? $"Edit Development Plan #{PlanToEdit!.Id}" : "Create Development Plan")</h6>
             </div>
             <button class="btn-close btn-close-white" @onclick="CancelAsync"></button>
         </div>
@@ -59,7 +59,7 @@
                         <div class="row g-2">
                             <div class="col-6">
                                 <select class="form-select form-select-sm" @bind="SelectedMonth">
-                                    <option value="1">January (Month 1)</option>
+                                    <option value="1">January</option>
                                     <option value="2">February</option>
                                     <option value="3">March</option>
                                     <option value="4">April</option>

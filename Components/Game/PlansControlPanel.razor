@@ -11,7 +11,7 @@
                     <i class="bi bi-diagram-3-fill h5 mb-0"></i>
                 </span>
                 <div>
-                    <h6 class="fw-bold text-dark mb-0">Spatial Plans</h6>
+                    <h6 class="fw-bold text-dark mb-0">Development Plans</h6>
                     <small class="text-muted">@Plans.Count Plan(s) Registered</small>
                 </div>
             </div>
@@ -20,7 +20,7 @@
                 {
                     <button class="btn btn-sm btn-success rounded-circle shadow-sm p-0 d-flex align-items-center justify-content-center create-plan-btn"
                             @onclick="TriggerOpenNewPlanAsync"
-                            title="Create New Spatial Plan">
+                            title="Create New Development Plan">
                         <i class="bi bi-plus-lg"></i>
                     </button>
                 }
@@ -37,14 +37,14 @@
                 {
                     <div class="text-center py-3">
                         <div class="spinner-border spinner-border-sm text-success" role="status"></div>
-                        <span class="ms-2 text-muted small">Loading spatial plans...</span>
+                        <span class="ms-2 text-muted small">Loading development plans...</span>
                     </div>
                 }
                 else if (!Plans.Any())
                 {
                     <div class="text-center py-4 text-muted">
                         <i class="bi bi-folder-x display-6 d-block mb-2"></i>
-                        <p class="small mb-2">No spatial plans registered yet.</p>
+                        <p class="small mb-2">No development plans registered yet.</p>
                     </div>
                 }
                 else

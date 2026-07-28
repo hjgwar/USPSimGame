@@ -21,7 +21,7 @@ else
     <!-- Bottom-Left Stacked Controls Container (Plans on top, Map on bottom) -->
     <div class="position-fixed bottom-0 start-0 m-3 z-3 d-flex flex-column gap-2 pointer-events-none" style="width: 360px; max-width: calc(100vw - 32px);">
         <div class="pointer-events-auto">
-            <!-- Spatial Plans Panel (Top, expands upwards) -->
+            <!-- Development Plans Panel (Top, expands upwards) -->
             <PlansControlPanel @ref="plansControlPanel"
                                GameSessionId="@(PlayerSessionState.CurrentGameSession?.Id ?? 0)"
                                CurrentTeamId="@(PlayerSessionState.CurrentTeam?.Id ?? 0)"
