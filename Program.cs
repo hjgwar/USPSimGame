@@ -4,6 +4,8 @@ using USPSimGame.Components;
 using USPSimGame.Data;
 using USPSimGame.Services;
 using USPSimGame.Services.Layers;
+using USPSimGame.Services.Plans;
+using USPSimGame.Services.Presets;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,6 +17,8 @@ builder.Services.AddRazorComponents()
         options.MaximumReceiveMessageSize = 50 * 1024 * 1024; // 50 MB
     });
 
+builder.Services.AddServerSideBlazor().AddCircuitOptions(options => options.DetailedErrors = true);
+
 builder.Services.AddBlazorBootstrap();
 
 // Add Entity Framework Core & PostgreSQL
@@ -25,10 +29,13 @@ builder.Services.AddDbContextFactory<AppDbContext>(options =>
 
 // Register Application Services
 builder.Services.AddSingleton<IPasswordHasher, PasswordHasherService>();
+builder.Services.AddScoped<IPresetFileService, PresetFileService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IGameSessionService, GameSessionService>();
 builder.Services.AddScoped<ITeamService, TeamService>();
 builder.Services.AddScoped<IPlayerSessionService, PlayerSessionService>();
+builder.Services.AddScoped<IPlanService, PlanService>();
+builder.Services.AddScoped<IPlanApprovalEvaluationService, PlanApprovalEvaluationService>();
 builder.Services.AddScoped<CreatorAuthState>();
 builder.Services.AddScoped<PlayerSessionState>();
 
@@ -73,6 +80,22 @@ using (var scope = app.Services.CreateScope())
         }
         catch (Exception ex)
         {
+            if (ex.ToString().Contains("42P07") || ex.ToString().Contains("already exists"))
+            {
+                logger.LogWarning("Existing database schema is incompatible with reset EF migrations (table already exists). Re-creating database...");
+                try
+                {
+                    await dbContext.Database.EnsureDeletedAsync();
+                    await dbContext.Database.MigrateAsync();
+                    logger.LogInformation("EF Core database successfully re-created and migrated.");
+                    break;
+                }
+                catch (Exception reEx)
+                {
+                    logger.LogError(reEx, "Failed to re-create database after migration reset.");
+                }
+            }
+
             logger.LogError(ex, "Database migration failed on attempt {Attempt}/{MaxRetries}.", retry, maxRetries);
             if (retry == maxRetries)
             {
@@ -108,6 +131,13 @@ app.MapGet("/api/layers/{sessionId:int}/{layerKey}", async (int sessionId, strin
     }
 
     return Results.Content(layer.CachedDataContent, "application/json");
+});
+
+app.MapGet("/api/teams/session/{sessionId:int}", async (int sessionId, ITeamService teamService) =>
+{
+    var teams = await teamService.GetTeamsByGameSessionAsync(sessionId);
+    var payload = teams.Select(t => new { id = t.Id, name = t.Name, color = t.Color, areaDefinition = t.AreaDefinition });
+    return Results.Ok(payload);
 });
 
 app.MapStaticAssets();

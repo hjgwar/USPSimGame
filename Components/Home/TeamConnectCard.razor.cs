@@ -13,6 +13,9 @@ public partial class TeamConnectCard : ComponentBase
     public IPlayerSessionService PlayerSessionService { get; set; } = default!;
 
     [Inject]
+    public IAuthService AuthService { get; set; } = default!;
+
+    [Inject]
     public PlayerSessionState PlayerSessionState { get; set; } = default!;
 
     [Inject]
@@ -25,6 +28,10 @@ public partial class TeamConnectCard : ComponentBase
     protected int SelectedTeamId { get; set; }
     protected string PlayerName { get; set; } = string.Empty;
     protected string TeamPassword { get; set; } = string.Empty;
+
+    protected string AdminUsername { get; set; } = string.Empty;
+    protected string AdminPassword { get; set; } = string.Empty;
+
     protected string? ErrorMessage { get; set; }
     protected bool IsLoadingTeams { get; set; } = true;
     protected bool IsConnecting { get; set; }
@@ -46,7 +53,7 @@ public partial class TeamConnectCard : ComponentBase
                 }
                 else
                 {
-                    SelectedTeamId = 0;
+                    SelectedTeamId = -1; // Default to Admin if no teams exist
                 }
             }
             catch (Exception ex)
@@ -62,26 +69,48 @@ public partial class TeamConnectCard : ComponentBase
 
     protected async Task HandleConnect()
     {
-        if (SelectedTeamId <= 0)
-        {
-            ErrorMessage = "Please select a valid team.";
-            return;
-        }
-
         ErrorMessage = null;
         IsConnecting = true;
 
         try
         {
-            var result = await PlayerSessionService.ConnectAsync(SelectedTeamId, PlayerName, TeamPassword);
-            if (result.Success && result.PlayerSession != null && result.Team != null && result.GameSession != null)
+            if (SelectedTeamId == -1)
             {
-                PlayerSessionState.SetSession(result.PlayerSession, result.Team, result.GameSession);
-                Navigation.NavigateTo("/game");
+                if (string.IsNullOrWhiteSpace(AdminUsername) || string.IsNullOrWhiteSpace(AdminPassword))
+                {
+                    ErrorMessage = "Please enter admin username and password.";
+                    return;
+                }
+
+                var adminUser = await AuthService.AuthenticateAsync(AdminUsername, AdminPassword);
+                if (adminUser != null)
+                {
+                    PlayerSessionState.SetAdminSession(adminUser, SelectedSession);
+                    Navigation.NavigateTo("/game");
+                }
+                else
+                {
+                    ErrorMessage = "Invalid admin username or password. Please try again.";
+                }
             }
             else
             {
-                ErrorMessage = result.ErrorMessage ?? "Connection failed. Please check your team password.";
+                if (SelectedTeamId <= 0)
+                {
+                    ErrorMessage = "Please select a valid team.";
+                    return;
+                }
+
+                var result = await PlayerSessionService.ConnectAsync(SelectedTeamId, PlayerName, TeamPassword);
+                if (result.Success && result.PlayerSession != null && result.Team != null && result.GameSession != null)
+                {
+                    PlayerSessionState.SetSession(result.PlayerSession, result.Team, result.GameSession);
+                    Navigation.NavigateTo("/game");
+                }
+                else
+                {
+                    ErrorMessage = result.ErrorMessage ?? "Connection failed. Please check your team password.";
+                }
             }
         }
         catch (Exception ex)

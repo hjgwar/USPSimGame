@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 using USPSimGame.Data.Entities;
+using USPSimGame.Services;
 using USPSimGame.Services.Layers;
 
 namespace USPSimGame.Components.Game;
@@ -11,16 +12,26 @@ public partial class MapControlPanel : ComponentBase
     public IMapLayerService MapLayerService { get; set; } = default!;
 
     [Inject]
+    public ITeamService TeamService { get; set; } = default!;
+
+    [Inject]
     public IJSRuntime JSRuntime { get; set; } = default!;
 
     [Parameter, EditorRequired]
     public int GameSessionId { get; set; }
 
     protected List<GameSessionMapLayer> SessionLayers { get; set; } = new();
+    protected List<Team> SessionTeams { get; set; } = new();
     protected Dictionary<string, bool> LayerVisibilities { get; set; } = new();
     protected List<GameSessionMapLayer> OrderedVisibleLayers { get; set; } = new();
 
-    protected bool IsCollapsed { get; set; } = false;
+    [Parameter]
+    public bool IsCollapsed { get; set; } = true;
+
+    [Parameter]
+    public EventCallback<bool> OnToggleCollapse { get; set; }
+
+    protected bool ShowTeamAreas { get; set; } = true;
     protected string ActiveTab { get; set; } = "layers";
     protected int? DraggedIndex { get; set; }
 
@@ -29,6 +40,19 @@ public partial class MapControlPanel : ComponentBase
     protected override async Task OnInitializedAsync()
     {
         await LoadSessionLayersAsync();
+        await LoadSessionTeamsAsync();
+    }
+
+    private async Task LoadSessionTeamsAsync()
+    {
+        try
+        {
+            SessionTeams = await TeamService.GetTeamsByGameSessionAsync(GameSessionId);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[MapControlPanel] Error loading session teams: {ex.Message}");
+        }
     }
 
     private async Task LoadSessionLayersAsync()
@@ -41,11 +65,21 @@ public partial class MapControlPanel : ComponentBase
             {
                 if (!LayerVisibilities.ContainsKey(layer.LayerDefinition.Key))
                 {
-                    LayerVisibilities[layer.LayerDefinition.Key] = true;
+                    bool isDefaultOn = layer.LayerDefinition.Key == "pdok-3dbag-buildings" || layer.LayerDefinition.IsEnabledByDefault;
+                    LayerVisibilities[layer.LayerDefinition.Key] = isDefaultOn;
                 }
             }
 
             await UpdateOrderedVisibleLayersAsync();
+
+            foreach (var kvp in LayerVisibilities)
+            {
+                try
+                {
+                    await JSRuntime.InvokeVoidAsync("uspsim2d5.setLayerVisibility", kvp.Key, kvp.Value);
+                }
+                catch { }
+            }
         }
         catch (Exception ex)
         {
@@ -53,9 +87,23 @@ public partial class MapControlPanel : ComponentBase
         }
     }
 
-    protected void ToggleCollapse()
+    protected async Task ToggleCollapse()
     {
         IsCollapsed = !IsCollapsed;
+        await OnToggleCollapse.InvokeAsync(IsCollapsed);
+    }
+
+    protected async Task ToggleTeamAreasVisibilityAsync(bool isVisible)
+    {
+        ShowTeamAreas = isVisible;
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("uspsim2d5.toggleTeamAreasVisibility", isVisible);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[MapControlPanel] JS Error toggling team areas visibility: {ex.Message}");
+        }
     }
 
     protected async Task ToggleLayerVisibilityAsync(string layerKey, bool isVisible)

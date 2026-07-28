@@ -3,10 +3,10 @@
 @using USPSimGame.Data.Models
 @using USPSimGame.Services.Layers
 
-<div class="map-control-panel-container position-fixed bottom-0 start-0 m-3 z-3">
-    <div class="card border-0 shadow-lg rounded-4 overflow-hidden map-control-card">
+<div class="map-control-panel-container z-3">
+    <div class="card border-0 shadow-lg rounded-4 overflow-hidden map-control-card d-flex flex-column-reverse">
         <!-- Panel Header -->
-        <div class="card-header bg-transparent border-bottom p-3 d-flex align-items-center justify-content-between">
+        <div class="card-header bg-white border-top p-3 d-flex align-items-center justify-content-between">
             <div class="d-flex align-items-center gap-2">
                 <span class="p-2 rounded-3 bg-primary-subtle text-primary">
                     <i class="bi bi-layers-half h5 mb-0"></i>
@@ -40,7 +40,7 @@
             </div>
 
             <!-- Panel Content -->
-            <div class="card-body p-3 panel-content-body">
+            <div class="card-body p-3 panel-content-body overflow-auto">
                 @if (ActiveTab == "layers")
                 {
                     <div class="text-uppercase text-muted fw-bold extra-small mb-2 tab-section-title">
@@ -57,6 +57,19 @@
                     else
                     {
                         <div class="d-flex flex-column gap-2">
+                            <!-- Existing Team Areas Toggle -->
+                            <div class="card border-0 shadow-sm p-3 rounded-3 bg-white layer-item @(ShowTeamAreas ? "border-start border-primary border-3" : "")">
+                                <div class="form-check form-switch d-flex align-items-center justify-content-between ps-0 mb-0">
+                                    <label class="form-check-label flex-grow-1 cursor-pointer me-2" for="switch-team-areas">
+                                        <div class="fw-bold text-dark small mb-1">Existing Team Areas</div>
+                                        <div>
+                                            <span class="badge bg-primary-subtle text-primary me-1">Territory Boundaries</span>
+                                        </div>
+                                    </label>
+                                    <input class="form-check-input ms-0 cursor-pointer" type="checkbox" role="switch" id="switch-team-areas" checked="@ShowTeamAreas" @onchange="(e) => ToggleTeamAreasVisibilityAsync((bool)e.Value!)" />
+                                </div>
+                            </div>
+
                             @foreach (var layer in SessionLayers)
                             {
                                 bool isVisible = LayerVisibilities.TryGetValue(layer.LayerDefinition.Key, out bool vis) ? vis : true;
@@ -85,83 +98,106 @@
                         <small class="text-muted italic extra-small">Drag or use arrows to reorder z-index</small>
                     </div>
 
-                    @if (!OrderedVisibleLayers.Any())
-                    {
-                        <div class="text-center py-4 text-muted small">
-                            <i class="bi bi-eye-slash d-block display-6 mb-2 text-secondary"></i>
-                            No layers currently selected. Select layers in the <strong>Layers</strong> tab to view legend.
-                        </div>
-                    }
-                    else
-                    {
-                        <div class="d-flex flex-column gap-2">
-                            @for (int index = 0; index < OrderedVisibleLayers.Count; index++)
-                            {
-                                var layer = OrderedVisibleLayers[index];
-                                int currentIndex = index;
-
-                                <div class="card border rounded-3 bg-white p-3 shadow-sm legend-card"
-                                     draggable="true"
-                                     @ondragstart="() => HandleDragStart(currentIndex)"
-                                     @ondragover:preventDefault
-                                     @ondrop="() => HandleDropAsync(currentIndex)">
-
-                                    <div class="d-flex align-items-center justify-content-between mb-2">
-                                        <div class="d-flex align-items-center gap-2">
-                                            <i class="bi bi-grip-vertical text-muted cursor-grab fs-5"></i>
-                                            <span class="badge bg-primary-subtle text-primary rounded-circle layer-badge-number">
-                                                @(OrderedVisibleLayers.Count - index)
-                                            </span>
-                                            <strong class="text-dark small">@layer.LayerDefinition.Name</strong>
-                                        </div>
-
-                                        <div class="btn-group btn-group-sm">
-                                            <button class="btn btn-light btn-sm py-0 px-1 border" disabled="@(currentIndex == 0)" @onclick="() => MoveLayerUpAsync(currentIndex)" title="Move Layer Up (Bring to Front)">
-                                                <i class="bi bi-arrow-up"></i>
-                                            </button>
-                                            <button class="btn btn-light btn-sm py-0 px-1 border" disabled="@(currentIndex == OrderedVisibleLayers.Count - 1)" @onclick="() => MoveLayerDownAsync(currentIndex)" title="Move Layer Down (Send to Back)">
-                                                <i class="bi bi-arrow-down"></i>
-                                            </button>
-                                        </div>
+                    <div class="d-flex flex-column gap-2">
+                        @if (ShowTeamAreas && SessionTeams.Any())
+                        {
+                            <div class="card border rounded-3 bg-white p-3 shadow-sm mb-1">
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="badge bg-primary-subtle text-primary rounded-circle layer-badge-number">
+                                            <i class="bi bi-shield-shaded"></i>
+                                        </span>
+                                        <strong class="text-dark small">Existing Team Areas</strong>
                                     </div>
-
-                                    <!-- Dynamic Layer Legend Items -->
-                                    <div class="legend-box bg-light p-2 rounded-2 border">
-                                        @{
-                                            var legendInfo = MapLayerService.GetLegendForProvider(layer.LayerDefinition.Key);
-                                        }
-                                        @if (legendInfo.Items.Any())
+                                    <span class="badge bg-primary-subtle text-primary extra-small">Territories</span>
+                                </div>
+                                <div class="legend-box bg-light p-2 rounded-2 border">
+                                    <div class="d-flex flex-column gap-1 extra-small">
+                                        @foreach (var team in SessionTeams)
                                         {
-                                            <div class="d-flex flex-column gap-1 extra-small">
-                                                @foreach (var item in legendInfo.Items)
-                                                {
-                                                    <div class="d-flex align-items-center gap-2">
-                                                        @if (item.Shape == LegendItemShape.Line)
-                                                        {
-                                                            <span style="display:inline-block; width:18px; height:@(item.LineWidthPx.ToString(System.Globalization.CultureInfo.InvariantCulture))px; background-color:@item.Color; @(item.IsDashed ? $"border-bottom: 2px dashed {item.Color}; background-color: transparent;" : "")"></span>
-                                                        }
-                                                        else if (item.Shape == LegendItemShape.Point)
-                                                        {
-                                                            <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background-color:@item.Color; border: 1px solid @(item.BorderColor ?? "#ffffff"); flex-shrink: 0;"></span>
-                                                        }
-                                                        else if (item.Shape == LegendItemShape.PolygonSwatch)
-                                                        {
-                                                            <span style="display:inline-block; width:16px; height:12px; border-radius:2px; background-color:@item.Color; border: 1px solid @(item.BorderColor ?? item.Color); flex-shrink: 0;"></span>
-                                                        }
-                                                        <span>@item.Label</span>
-                                                    </div>
-                                                }
+                                            <div class="d-flex align-items-center gap-2">
+                                                <span style="display:inline-block; width:12px; height:12px; border-radius:50%; background-color:@team.Color; border: 1px solid rgba(0,0,0,0.2); flex-shrink: 0;"></span>
+                                                <span class="fw-semibold text-dark">@team.Name</span>
                                             </div>
-                                        }
-                                        else
-                                        {
-                                            <div class="extra-small text-muted italic">Vector GeoJSON Features</div>
                                         }
                                     </div>
                                 </div>
-                            }
-                        </div>
-                    }
+                            </div>
+                        }
+
+                        @if (!OrderedVisibleLayers.Any() && (!ShowTeamAreas || !SessionTeams.Any()))
+                        {
+                            <div class="text-center py-4 text-muted small">
+                                <i class="bi bi-eye-slash d-block display-6 mb-2 text-secondary"></i>
+                                No layers currently selected. Select layers in the <strong>Layers</strong> tab to view legend.
+                            </div>
+                        }
+                        @for (int index = 0; index < OrderedVisibleLayers.Count; index++)
+                        {
+                            var layer = OrderedVisibleLayers[index];
+                            int currentIndex = index;
+
+                            <div class="card border rounded-3 bg-white p-3 shadow-sm legend-card"
+                                    draggable="true"
+                                    @ondragstart="() => HandleDragStart(currentIndex)"
+                                    @ondragover:preventDefault
+                                    @ondrop="() => HandleDropAsync(currentIndex)">
+
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="bi bi-grip-vertical text-muted cursor-grab fs-5"></i>
+                                        <span class="badge bg-primary-subtle text-primary rounded-circle layer-badge-number">
+                                            @(OrderedVisibleLayers.Count - index)
+                                        </span>
+                                        <strong class="text-dark small">@layer.LayerDefinition.Name</strong>
+                                    </div>
+
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-light btn-sm py-0 px-1 border" disabled="@(currentIndex == 0)" @onclick="() => MoveLayerUpAsync(currentIndex)" title="Move Layer Up (Bring to Front)">
+                                            <i class="bi bi-arrow-up"></i>
+                                        </button>
+                                        <button class="btn btn-light btn-sm py-0 px-1 border" disabled="@(currentIndex == OrderedVisibleLayers.Count - 1)" @onclick="() => MoveLayerDownAsync(currentIndex)" title="Move Layer Down (Send to Back)">
+                                            <i class="bi bi-arrow-down"></i>
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <!-- Dynamic Layer Legend Items -->
+                                <div class="legend-box bg-light p-2 rounded-2 border">
+                                    @{
+                                        var legendInfo = MapLayerService.GetLegendForProvider(layer.LayerDefinition.Key);
+                                    }
+                                    @if (legendInfo.Items.Any())
+                                    {
+                                        <div class="d-flex flex-column gap-1 extra-small">
+                                            @foreach (var item in legendInfo.Items)
+                                            {
+                                                <div class="d-flex align-items-center gap-2">
+                                                    @if (item.Shape == LegendItemShape.Line)
+                                                    {
+                                                        <span style="display:inline-block; width:18px; height:@(item.LineWidthPx.ToString(System.Globalization.CultureInfo.InvariantCulture))px; background-color:@item.Color; @(item.IsDashed ? $"border-bottom: 2px dashed {item.Color}; background-color: transparent;" : "")"></span>
+                                                    }
+                                                    else if (item.Shape == LegendItemShape.Point)
+                                                    {
+                                                        <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background-color:@item.Color; border: 1px solid @(item.BorderColor ?? "#ffffff"); flex-shrink: 0;"></span>
+                                                    }
+                                                    else if (item.Shape == LegendItemShape.PolygonSwatch)
+                                                    {
+                                                        <span style="display:inline-block; width:16px; height:12px; border-radius:2px; background-color:@item.Color; border: 1px solid @(item.BorderColor ?? item.Color); flex-shrink: 0;"></span>
+                                                    }
+                                                    <span>@item.Label</span>
+                                                </div>
+                                            }
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="extra-small text-muted italic">Vector GeoJSON Features</div>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
                 }
             </div>
         }

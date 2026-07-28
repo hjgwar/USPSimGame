@@ -18,11 +18,17 @@ public partial class SessionLayersModal : ComponentBase
     [Parameter]
     public EventCallback OnUpdated { get; set; }
 
-    protected List<GameSessionMapLayer> SessionLayers { get; set; } = new();
-    protected List<MapLayerDefinition> AvailableCatalogDefinitions { get; set; } = new();
-    protected int SelectedCatalogLayerId { get; set; } = 0;
+    protected List<GameSessionMapLayer> SessionMapLayers { get; set; } = new();
+    protected List<MapLayerDefinition> AvailableMapDefinitions { get; set; } = new();
+    protected int SelectedMapLayerId { get; set; } = 0;
+
+    protected List<GameSessionPlannableLayer> SessionPlannableLayers { get; set; } = new();
+    protected List<PlannableLayerDefinition> AvailablePlannableDefinitions { get; set; } = new();
+    protected int SelectedPlannableLayerId { get; set; } = 0;
+
     protected bool IsLoading { get; set; } = true;
-    protected bool IsAttachingLayer { get; set; } = false;
+    protected bool IsAttachingMapLayer { get; set; } = false;
+    protected bool IsAttachingPlannableLayer { get; set; } = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -34,8 +40,11 @@ public partial class SessionLayersModal : ComponentBase
         IsLoading = true;
         try
         {
-            SessionLayers = await MapLayerService.GetSessionLayersAsync(Session.Id);
-            AvailableCatalogDefinitions = await MapLayerService.GetAvailableLayerDefinitionsAsync();
+            SessionMapLayers = await MapLayerService.GetSessionLayersAsync(Session.Id);
+            AvailableMapDefinitions = await MapLayerService.GetAvailableLayerDefinitionsAsync();
+
+            SessionPlannableLayers = await MapLayerService.GetSessionPlannableLayersAsync(Session.Id);
+            AvailablePlannableDefinitions = await MapLayerService.GetAvailablePlannableLayerDefinitionsAsync();
         }
         catch (Exception ex)
         {
@@ -47,30 +56,30 @@ public partial class SessionLayersModal : ComponentBase
         }
     }
 
-    protected async Task AttachCatalogLayerAsync()
+    protected async Task AttachMapLayerAsync()
     {
-        if (SelectedCatalogLayerId > 0)
+        if (SelectedMapLayerId > 0)
         {
-            IsAttachingLayer = true;
+            IsAttachingMapLayer = true;
             try
             {
-                await MapLayerService.AttachLayerToSessionAsync(Session.Id, SelectedCatalogLayerId);
-                SelectedCatalogLayerId = 0;
+                await MapLayerService.AttachLayerToSessionAsync(Session.Id, SelectedMapLayerId);
+                SelectedMapLayerId = 0;
                 await LoadDataAsync();
                 await OnUpdated.InvokeAsync();
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[SessionLayersModal] Error attaching layer: {ex.Message}");
+                Console.WriteLine($"[SessionLayersModal] Error attaching map layer: {ex.Message}");
             }
             finally
             {
-                IsAttachingLayer = false;
+                IsAttachingMapLayer = false;
             }
         }
     }
 
-    protected async Task RemoveSessionLayerAsync(int sessionLayerId)
+    protected async Task RemoveMapLayerAsync(int sessionLayerId)
     {
         try
         {
@@ -80,11 +89,11 @@ public partial class SessionLayersModal : ComponentBase
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[SessionLayersModal] Error removing layer: {ex.Message}");
+            Console.WriteLine($"[SessionLayersModal] Error removing map layer: {ex.Message}");
         }
     }
 
-    protected async Task SaveSessionLayerTagsAsync(GameSessionMapLayer layer)
+    protected async Task SaveMapLayerTagsAsync(GameSessionMapLayer layer)
     {
         try
         {
@@ -98,7 +107,7 @@ public partial class SessionLayersModal : ComponentBase
         }
     }
 
-    protected async Task ResetSessionLayerTagsAsync(int sessionLayerId)
+    protected async Task ResetMapLayerTagsAsync(int sessionLayerId)
     {
         try
         {
@@ -109,6 +118,44 @@ public partial class SessionLayersModal : ComponentBase
         catch (Exception ex)
         {
             Console.WriteLine($"[SessionLayersModal] Error resetting tags: {ex.Message}");
+        }
+    }
+
+    // --- Plannable Layer Actions ---
+    protected async Task AttachPlannableLayerAsync()
+    {
+        if (SelectedPlannableLayerId > 0)
+        {
+            IsAttachingPlannableLayer = true;
+            try
+            {
+                await MapLayerService.AttachPlannableLayerToSessionAsync(Session.Id, SelectedPlannableLayerId);
+                SelectedPlannableLayerId = 0;
+                await LoadDataAsync();
+                await OnUpdated.InvokeAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[SessionLayersModal] Error attaching plannable layer: {ex.Message}");
+            }
+            finally
+            {
+                IsAttachingPlannableLayer = false;
+            }
+        }
+    }
+
+    protected async Task RemovePlannableLayerAsync(int sessionPlannableLayerId)
+    {
+        try
+        {
+            await MapLayerService.RemovePlannableLayerFromSessionAsync(sessionPlannableLayerId);
+            await LoadDataAsync();
+            await OnUpdated.InvokeAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[SessionLayersModal] Error removing plannable layer: {ex.Message}");
         }
     }
 

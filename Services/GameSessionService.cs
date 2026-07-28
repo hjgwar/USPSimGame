@@ -12,6 +12,8 @@ public class GameSessionService : IGameSessionService
     private readonly IMapLayerService _mapLayerService;
     private readonly ILogger<GameSessionService> _logger;
 
+    public event Func<int, GameState, Task>? OnGameSessionStateChanged;
+
     public GameSessionService(
         IDbContextFactory<AppDbContext> dbContextFactory,
         IMapLayerService mapLayerService,
@@ -73,5 +75,29 @@ public class GameSessionService : IGameSessionService
         db.GameSessions.Remove(session);
         await db.SaveChangesAsync();
         return true;
+    }
+
+    public async Task UpdateGameSessionStateAsync(int sessionId, GameState newState)
+    {
+        await using var db = await _dbContextFactory.CreateDbContextAsync();
+        var session = await db.GameSessions.FindAsync(sessionId);
+        if (session != null)
+        {
+            session.State = newState;
+            await db.SaveChangesAsync();
+            _logger.LogInformation("GameSessionService: Session #{Id} state changed to {State}", sessionId, newState);
+
+            if (OnGameSessionStateChanged != null)
+            {
+                try
+                {
+                    await OnGameSessionStateChanged.Invoke(sessionId, newState);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "GameSessionService: Error notifying subscribers of state change.");
+                }
+            }
+        }
     }
 }

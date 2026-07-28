@@ -1,16 +1,16 @@
 .map-control-panel-container {
-    width: 340px;
-    max-width: calc(100vw - 32px);
+    width: 100%;
 }
 
 .map-control-card {
     background: rgba(255, 255, 255, 0.94);
     backdrop-filter: blur(16px);
     border: 1px solid rgba(255, 255, 255, 0.6) !important;
+    width: 100%;
 }
 
 .panel-content-body {
-    max-height: 440px;
+    max-height: 400px;
     overflow-y: auto;
 }
 

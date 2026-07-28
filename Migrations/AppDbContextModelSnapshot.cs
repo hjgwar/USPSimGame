@@ -97,6 +97,32 @@ namespace USPSimGame.Migrations
                     b.ToTable("GameSessionMapLayers");
                 });
 
+            modelBuilder.Entity("USPSimGame.Data.Entities.GameSessionPlannableLayer", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("GameSessionId")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("PlannableLayerDefinitionId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GameSessionId");
+
+                    b.HasIndex("PlannableLayerDefinitionId");
+
+                    b.ToTable("GameSessionPlannableLayers");
+                });
+
             modelBuilder.Entity("USPSimGame.Data.Entities.MapLayerDefinition", b =>
                 {
                     b.Property<int>("Id")
@@ -148,21 +174,21 @@ namespace USPSimGame.Migrations
                         {
                             Id = 1,
                             Category = "Buildings",
-                            Description = "Extruded 3D building footprints derived from 3D BAG lidar elevation data (LoD 1.3).",
+                            Description = "3D building footprints, roof shapes, heights, and volumes from 3D BAG (Kadaster/TU Delft).",
                             IsEnabledByDefault = true,
                             Key = "pdok-3dbag-buildings",
                             LayerType = "VectorGeoJson",
-                            Name = "3D BAG Buildings (2.5D Extruded)"
+                            Name = "3D BAG Buildings"
                         },
                         new
                         {
                             Id = 2,
                             Category = "Infrastructure",
-                            Description = "Electrical grid infrastructure featuring low-, medium-, and high-voltage cables and transformer stations for Liander territory.",
+                            Description = "Low-, medium-, and high-voltage electricity grid network for Liander service territory.",
                             IsEnabledByDefault = false,
                             Key = "liander-open-data-elektra",
                             LayerType = "VectorGeoJson",
-                            Name = "Liander Electricity Network (Cables & Stations)"
+                            Name = "Liander Electricity Grid"
                         },
                         new
                         {
@@ -206,6 +232,234 @@ namespace USPSimGame.Migrations
                         });
                 });
 
+            modelBuilder.Entity("USPSimGame.Data.Entities.Plan", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text");
+
+                    b.Property<int>("GameSessionId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("LockedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LockedBySessionId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("StartMonth")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("TeamId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GameSessionId");
+
+                    b.HasIndex("TeamId");
+
+                    b.ToTable("Plans");
+                });
+
+            modelBuilder.Entity("USPSimGame.Data.Entities.PlanFeature", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("GameSessionPlannableLayerId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("GeoJsonGeometry")
+                        .HasColumnType("text");
+
+                    b.Property<int>("PlanId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("PropertiesJson")
+                        .HasColumnType("text");
+
+                    b.Property<string>("TargetFeatureId")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GameSessionPlannableLayerId");
+
+                    b.HasIndex("PlanId");
+
+                    b.ToTable("PlanFeatures");
+                });
+
+            modelBuilder.Entity("USPSimGame.Data.Entities.PlanTeamJudgment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Judgment")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("PlanId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("TeamId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PlanId");
+
+                    b.HasIndex("TeamId");
+
+                    b.ToTable("PlanTeamJudgments");
+                });
+
+            modelBuilder.Entity("USPSimGame.Data.Entities.PlannableLayerDefinition", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("DefaultColor")
+                        .HasColumnType("text");
+
+                    b.Property<double?>("DefaultLineWidthPx")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text");
+
+                    b.Property<string>("GeometryType")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Icon")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsEnabledByDefault")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("SimulatorTags")
+                        .HasColumnType("text");
+
+                    b.Property<string>("TranslatorTags")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("PlannableLayerDefinitions");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            Category = "Infrastructure",
+                            DefaultColor = "#f59e0b",
+                            DefaultLineWidthPx = 2.5,
+                            Description = "Zoned land polygon area designated for ground-mounted solar PV development.",
+                            GeometryType = "Polygon",
+                            Icon = "bi-sun-fill",
+                            IsEnabledByDefault = true,
+                            Key = "solar-farm",
+                            Name = "Solar Farm Area"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            Category = "Infrastructure",
+                            DefaultColor = "#06b6d4",
+                            DefaultLineWidthPx = 2.5,
+                            Description = "Zoned land polygon area designated for onshore wind turbine installations.",
+                            GeometryType = "Polygon",
+                            Icon = "bi-wind",
+                            IsEnabledByDefault = true,
+                            Key = "wind-farm",
+                            Name = "Wind Farm Zone"
+                        },
+                        new
+                        {
+                            Id = 3,
+                            Category = "Infrastructure",
+                            DefaultColor = "#10b981",
+                            DefaultLineWidthPx = 2.0,
+                            Description = "Public or commercial electric vehicle charging station hub point location.",
+                            GeometryType = "Point",
+                            Icon = "bi-ev-station-fill",
+                            IsEnabledByDefault = true,
+                            Key = "ev-charger-hub",
+                            Name = "EV Charging Station Hub"
+                        },
+                        new
+                        {
+                            Id = 4,
+                            Category = "Infrastructure",
+                            DefaultColor = "#3b82f6",
+                            DefaultLineWidthPx = 3.5,
+                            Description = "High, medium, or low voltage power transmission or distribution line.",
+                            GeometryType = "Line",
+                            Icon = "bi-lightning-charge-fill",
+                            IsEnabledByDefault = true,
+                            Key = "power-cable",
+                            Name = "Electricity Connection Cable"
+                        },
+                        new
+                        {
+                            Id = 5,
+                            Category = "Infrastructure",
+                            DefaultColor = "#ef4444",
+                            DefaultLineWidthPx = 2.0,
+                            Description = "Electrical grid transformer station or substations for voltage step-down/step-up.",
+                            GeometryType = "Point",
+                            Icon = "bi-box-seam",
+                            IsEnabledByDefault = true,
+                            Key = "transformer-substation",
+                            Name = "Transformer Substation"
+                        });
+                });
+
             modelBuilder.Entity("USPSimGame.Data.Entities.PlayerSession", b =>
                 {
                     b.Property<int>("Id")
@@ -243,12 +497,21 @@ namespace USPSimGame.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("AreaDefinition")
+                        .HasColumnType("text");
+
                     b.Property<string>("Color")
                         .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<int>("GameSessionId")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime?>("LockedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LockedBySessionId")
+                        .HasColumnType("text");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -294,7 +557,7 @@ namespace USPSimGame.Migrations
                         {
                             Id = 1,
                             Email = "harald.warmelink@hu.nl",
-                            PasswordHash = "",
+                            PasswordHash = "AQAAAAIAAYagAAAAEKstQTVmO/0bmR5/P2B+mTIYP9Ju76yHdGFRYt7uq9Im2XkmV3pwZpvDAMTmlgzY3w==",
                             Username = "Admin"
                         });
                 });
@@ -318,6 +581,82 @@ namespace USPSimGame.Migrations
                     b.Navigation("LayerDefinition");
                 });
 
+            modelBuilder.Entity("USPSimGame.Data.Entities.GameSessionPlannableLayer", b =>
+                {
+                    b.HasOne("USPSimGame.Data.Entities.GameSession", "GameSession")
+                        .WithMany("PlannableLayers")
+                        .HasForeignKey("GameSessionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("USPSimGame.Data.Entities.PlannableLayerDefinition", "PlannableLayerDefinition")
+                        .WithMany()
+                        .HasForeignKey("PlannableLayerDefinitionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("GameSession");
+
+                    b.Navigation("PlannableLayerDefinition");
+                });
+
+            modelBuilder.Entity("USPSimGame.Data.Entities.Plan", b =>
+                {
+                    b.HasOne("USPSimGame.Data.Entities.GameSession", "GameSession")
+                        .WithMany("Plans")
+                        .HasForeignKey("GameSessionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("USPSimGame.Data.Entities.Team", "Team")
+                        .WithMany()
+                        .HasForeignKey("TeamId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("GameSession");
+
+                    b.Navigation("Team");
+                });
+
+            modelBuilder.Entity("USPSimGame.Data.Entities.PlanFeature", b =>
+                {
+                    b.HasOne("USPSimGame.Data.Entities.GameSessionPlannableLayer", "GameSessionPlannableLayer")
+                        .WithMany()
+                        .HasForeignKey("GameSessionPlannableLayerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("USPSimGame.Data.Entities.Plan", "Plan")
+                        .WithMany("Features")
+                        .HasForeignKey("PlanId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("GameSessionPlannableLayer");
+
+                    b.Navigation("Plan");
+                });
+
+            modelBuilder.Entity("USPSimGame.Data.Entities.PlanTeamJudgment", b =>
+                {
+                    b.HasOne("USPSimGame.Data.Entities.Plan", "Plan")
+                        .WithMany("Judgments")
+                        .HasForeignKey("PlanId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("USPSimGame.Data.Entities.Team", "Team")
+                        .WithMany()
+                        .HasForeignKey("TeamId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Plan");
+
+                    b.Navigation("Team");
+                });
+
             modelBuilder.Entity("USPSimGame.Data.Entities.Team", b =>
                 {
                     b.HasOne("USPSimGame.Data.Entities.GameSession", null)
@@ -331,7 +670,18 @@ namespace USPSimGame.Migrations
                 {
                     b.Navigation("MapLayers");
 
+                    b.Navigation("PlannableLayers");
+
+                    b.Navigation("Plans");
+
                     b.Navigation("Teams");
+                });
+
+            modelBuilder.Entity("USPSimGame.Data.Entities.Plan", b =>
+                {
+                    b.Navigation("Features");
+
+                    b.Navigation("Judgments");
                 });
 #pragma warning restore 612, 618
         }

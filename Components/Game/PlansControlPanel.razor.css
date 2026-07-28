@@ -1,0 +1,49 @@
+.plans-control-panel-container {
+    width: 100%;
+}
+
+.plans-control-card {
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.6) !important;
+    width: 100%;
+}
+
+.panel-content-body {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.create-plan-btn {
+    width: 32px;
+    height: 32px;
+}
+
+.plan-icon-wrapper {
+    width: 18px;
+}
+
+.state-group-header {
+    transition: background-color 0.15s ease;
+}
+
+.state-group-header:hover {
+    background-color: #e2e8f0 !important;
+}
+
+.plan-item-card {
+    transition: all 0.2s ease-in-out;
+}
+
+.cursor-pointer {
+    cursor: pointer;
+}
+
+.hover-bg-light:hover {
+    background-color: #f8fafc !important;
+    border-color: #cbd5e1 !important;
+}
+
+.micro-text {
+    font-size: 0.725rem;
+}
