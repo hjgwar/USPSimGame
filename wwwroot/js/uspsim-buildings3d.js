@@ -49,6 +49,7 @@ window.uspsim2d5.renderBuildings = function (geoJsonInput) {
         }
 
         console.log(`[2.5D Log] Grouping ${rawFeatures.length} building footprints into consolidated features...`);
+        window._buildingFeaturesStore = rawFeatures;
         const buildingMetadataList = [];
 
         rawFeatures.forEach(feature => {

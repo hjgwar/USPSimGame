@@ -150,6 +150,7 @@ window.uspsim2d5.enableMapFeatureInspection = function (dotNetRef) {
         map.forEachFeatureAtPixel(pixel, function (feature, layer) {
             if (!feature) return;
             if (layer === window._featureHighlightLayer) return;
+            if (window._mapLayers && layer === window._mapLayers['pdok-3dbag-buildings']) return;
 
             let layerName = 'Map Feature';
             let layerKey = 'unknown';
@@ -223,6 +224,43 @@ window.uspsim2d5.enableMapFeatureInspection = function (dotNetRef) {
                 customEntries: []
             });
         }, { hitTolerance: 8 });
+
+        if (window._buildingFeaturesStore && window._buildingFeaturesStore.length > 0) {
+            const buildingLayer = window._mapLayers ? window._mapLayers['pdok-3dbag-buildings'] : null;
+            if (!buildingLayer || buildingLayer.getVisible()) {
+                const coord = evt.coordinate;
+                for (let i = 0; i < window._buildingFeaturesStore.length; i++) {
+                    const bFeat = window._buildingFeaturesStore[i];
+                    const geom = bFeat.getGeometry();
+                    if (geom && geom.intersectsCoordinate(coord)) {
+                        const rawProps = bFeat.getProperties() || {};
+                        const cleanProps = {};
+                        Object.keys(rawProps).forEach(key => {
+                            if (key !== 'geometry' && !key.startsWith('_')) {
+                                const val = rawProps[key];
+                                if (val !== null && val !== undefined && typeof val !== 'object') {
+                                    cleanProps[key] = String(val);
+                                }
+                            }
+                        });
+
+                        const bId = rawProps.identificatie || rawProps.b3_bag_id || rawProps.gml_id || `Building_${i}`;
+                        clickedFeatures.push({
+                            featureId: String(bId),
+                            layerKey: 'pdok-3dbag-buildings',
+                            layerId: 'pdok-3dbag-buildings',
+                            layerName: '3D BAG Building',
+                            category: 'BAG Building (PDOK)',
+                            color: '#64748b',
+                            isEditable: false,
+                            properties: cleanProps,
+                            customEntries: []
+                        });
+                        break;
+                    }
+                }
+            }
+        }
 
         if (clickedFeatures.length > 0 && window._blazorInspectDotNetRef) {
             const clientX = evt.originalEvent ? evt.originalEvent.clientX : pixel[0];
