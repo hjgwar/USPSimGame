@@ -112,8 +112,26 @@ public class PlanApprovalEvaluationService : IPlanApprovalEvaluationService
             }
         }
 
-        // 3. Condition C/D: New Unclaimed Development (No overlap with ANY territory and no overlap with other teams' implemented plans)
-        if (!overlapsOwnTerritory && !result.ConditionA_OverlapsOtherImplementedPlan && !result.ConditionB_OverlapsOtherTeamTerritory)
+        // 3. Condition C/D: New Unclaimed Development (Check if ANY feature/ring lies outside all team territories)
+        var allTeamTerritoryRings = teams
+            .SelectMany(t => GeoJsonSpatialUtils.ExtractRings(t.AreaDefinition))
+            .ToList();
+
+        bool hasUnclaimedTerritoryFeature = false;
+        foreach (var ring in planRings)
+        {
+            var singleRingList = new List<List<GeoJsonSpatialUtils.Point2D>> { ring };
+            bool intersectsAnyTeamTerritory = allTeamTerritoryRings.Count > 0 &&
+                GeoJsonSpatialUtils.DoRingsIntersect(singleRingList, allTeamTerritoryRings);
+
+            if (!intersectsAnyTeamTerritory)
+            {
+                hasUnclaimedTerritoryFeature = true;
+                break;
+            }
+        }
+
+        if (hasUnclaimedTerritoryFeature || (!overlapsOwnTerritory && !result.ConditionA_OverlapsOtherImplementedPlan && !result.ConditionB_OverlapsOtherTeamTerritory))
         {
             result.IsNewUnclaimedDevelopment = true;
             foreach (var team in teams)
@@ -133,7 +151,11 @@ public class PlanApprovalEvaluationService : IPlanApprovalEvaluationService
         if (result.RequiresMultiTeamApproval)
         {
             var teamListText = string.Join(", ", result.RequiredTeamNames);
-            if (result.ConditionA_OverlapsOtherImplementedPlan && result.ConditionB_OverlapsOtherTeamTerritory)
+            if (result.IsNewUnclaimedDevelopment)
+            {
+                result.ExplanatoryText = "This plan adds something completely new to the map. Approval from all teams is required.";
+            }
+            else if (result.ConditionA_OverlapsOtherImplementedPlan && result.ConditionB_OverlapsOtherTeamTerritory)
             {
                 result.ExplanatoryText = $"This plan overlaps implemented geometry and territories owned by other teams ({teamListText}). Approval is required from {teamListText} before this plan can be approved.";
             }

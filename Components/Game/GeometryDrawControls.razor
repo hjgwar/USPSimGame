@@ -3,22 +3,6 @@
 <div class="geometry-draw-controls-container">
     @if (IsActive)
     {
-        <div class="p-2 rounded-3 bg-light border d-flex align-items-center justify-content-between mb-2">
-            <div class="d-flex align-items-center gap-2">
-                <div class="rounded-circle p-2 d-flex align-items-center justify-content-center text-white" style="background-color: @Color; width: 32px; height: 32px;">
-                    <i class="bi @Icon small mb-0"></i>
-                </div>
-                <div>
-                    <span class="badge bg-warning-subtle text-dark border border-warning-subtle micro-text me-1">
-                        @GeometryType
-                    </span>
-                    <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle micro-text">
-                        @Category
-                    </span>
-                </div>
-            </div>
-        </div>
-
         <!-- Mode Toggle & Drawing Controls -->
         <div class="d-flex align-items-center justify-content-between p-2 rounded-3 bg-white border">
             <small class="fw-semibold text-muted micro-text">
@@ -44,6 +28,11 @@
                     <i class="bi bi-trash"></i>
                 </button>
             </div>
+        </div>
+
+        <div class="alert alert-info border-0 rounded-3 small p-2 mt-2 mb-0 d-flex align-items-center gap-2">
+            <i class="bi bi-info-circle-fill text-info h6 mb-0"></i>
+            <span class="micro-text">Click directly on the map to draw shape geometry. Drag any vertex to edit shapes.</span>
         </div>
     }
 </div>

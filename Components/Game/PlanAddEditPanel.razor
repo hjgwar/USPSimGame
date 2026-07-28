@@ -93,22 +93,6 @@
                                 <option value="@pLayer.Id">@pLayer.PlannableLayerDefinition.Name (@pLayer.PlannableLayerDefinition.GeometryType)</option>
                             }
                         </select>
-
-                        @{
-                            var currentLayer = SessionPlannableLayers.FirstOrDefault(l => l.Id == SelectedPlannableLayerId);
-                        }
-                        @if (currentLayer != null)
-                        {
-                            <GeometryDrawControls LayerName="@currentLayer.PlannableLayerDefinition.Name"
-                                                 GeometryType="@currentLayer.PlannableLayerDefinition.GeometryType.ToString()"
-                                                 Category="@currentLayer.PlannableLayerDefinition.Category.ToString()"
-                                                 Color="@(currentLayer.PlannableLayerDefinition.DefaultColor ?? "#3b82f6")"
-                                                 Icon="@(currentLayer.PlannableLayerDefinition.Icon ?? "bi-layers-fill")"
-                                                 IsActive="true"
-                                                 OnUndoPoint="UndoPointAsync"
-                                                 OnRedoPoint="RedoPointAsync"
-                                                 OnDeletePoint="DeletePointAsync" />
-                        }
                     </div>
 
                     <!-- Drawn Features in this Plan -->
@@ -116,7 +100,7 @@
                     {
                         <div>
                             <label class="form-label fw-bold text-dark small mb-1">
-                                <i class="bi bi-layers text-success me-1"></i>Drawn Plan Features (@DraftFeatures.Count)
+                                <i class="bi bi-layers text-success me-1"></i>Included Developments (@DraftFeatures.Count)
                             </label>
                             <div class="d-flex flex-column gap-2">
                                 @foreach (var featureItem in DraftFeatures)
@@ -156,11 +140,21 @@
                             </div>
                         </div>
                     }
-
-                    <div class="alert alert-info border-0 rounded-3 small p-2 mb-0 d-flex align-items-center gap-2">
-                        <i class="bi bi-info-circle-fill text-info h6 mb-0"></i>
-                        <span class="micro-text">Click directly on the map to draw shape geometry. Drag any vertex to edit shapes.</span>
-                    </div>
+                    @{
+                        var currentLayer = SessionPlannableLayers.FirstOrDefault(l => l.Id == SelectedPlannableLayerId);
+                    }
+                    @if (currentLayer != null)
+                    {
+                        <GeometryDrawControls LayerName="@currentLayer.PlannableLayerDefinition.Name"
+                                                GeometryType="@currentLayer.PlannableLayerDefinition.GeometryType.ToString()"
+                                                Category="@currentLayer.PlannableLayerDefinition.Category.ToString()"
+                                                Color="@(currentLayer.PlannableLayerDefinition.DefaultColor ?? "#3b82f6")"
+                                                Icon="@(currentLayer.PlannableLayerDefinition.Icon ?? "bi-layers-fill")"
+                                                IsActive="true"
+                                                OnUndoPoint="UndoPointAsync"
+                                                OnRedoPoint="RedoPointAsync"
+                                                OnDeletePoint="DeletePointAsync" />
+                    }
                 </div>
             }
         </div>

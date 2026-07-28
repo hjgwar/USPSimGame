@@ -158,9 +158,31 @@ public partial class PlanAddEditPanel : ComponentBase
         }
     }
 
+    private void EnsureSelectedLayerInDraftFeatures()
+    {
+        if (SelectedPlannableLayerId > 0)
+        {
+            var existing = DraftFeatures.FirstOrDefault(f => f.GameSessionPlannableLayerId == SelectedPlannableLayerId);
+            if (existing == null)
+            {
+                var layer = SessionPlannableLayers.FirstOrDefault(l => l.Id == SelectedPlannableLayerId);
+                if (layer != null)
+                {
+                    DraftFeatures.Add(new DraftFeatureItem
+                    {
+                        GameSessionPlannableLayerId = SelectedPlannableLayerId,
+                        Layer = layer,
+                        GeoJsonGeometry = null
+                    });
+                }
+            }
+        }
+    }
+
     protected async Task OnPlannableLayerChangedAsync()
     {
         await SyncCurrentLayerGeoJsonAsync();
+        EnsureSelectedLayerInDraftFeatures();
         await ActivateSelectedLayerDrawingAsync();
     }
 
@@ -170,6 +192,7 @@ public partial class PlanAddEditPanel : ComponentBase
         {
             await SyncCurrentLayerGeoJsonAsync();
             SelectedPlannableLayerId = gameSessionPlannableLayerId;
+            EnsureSelectedLayerInDraftFeatures();
             await ActivateSelectedLayerDrawingAsync();
         }
     }
@@ -233,10 +256,6 @@ public partial class PlanAddEditPanel : ComponentBase
                     {
                         existing.GeoJsonGeometry = geoJson;
                     }
-                }
-                else if (existing != null)
-                {
-                    DraftFeatures.Remove(existing);
                 }
 
                 await ReevaluateRealtimeSpatialConditionsAsync();
