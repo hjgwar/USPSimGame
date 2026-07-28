@@ -44,6 +44,7 @@ public partial class Game : ComponentBase, IDisposable
     protected Plan? PlanToEdit { get; set; }
     protected Plan? ActivePlan { get; set; }
     protected string? LockErrorMessage { get; set; }
+    protected List<Team> SessionTeams { get; set; } = new();
 
     protected bool isPlansPanelCollapsed { get; set; } = true;
     protected bool isMapPanelCollapsed { get; set; } = true;
@@ -131,6 +132,7 @@ public partial class Game : ComponentBase, IDisposable
                             await JSRuntime.InvokeVoidAsync("uspsim2d5.loadSessionLayer", session.Id, layer.LayerDefinition.Key);
                         }
                     }
+                    SessionTeams = await TeamService.GetTeamsByGameSessionAsync(session.Id);
                     TeamService.OnTeamAreaChanged += HandleTeamAreaChangedAsync;
                     GameSessionService.OnGameSessionStateChanged += HandleGameSessionStateChangedAsync;
                     await JSRuntime.InvokeVoidAsync("uspsim2d5.refreshTeamAreas", session.Id);

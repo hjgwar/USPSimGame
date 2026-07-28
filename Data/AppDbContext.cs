@@ -19,6 +19,7 @@ public class AppDbContext : DbContext
     public DbSet<GameSessionPlannableLayer> GameSessionPlannableLayers => Set<GameSessionPlannableLayer>();
     public DbSet<Plan> Plans => Set<Plan>();
     public DbSet<PlanFeature> PlanFeatures => Set<PlanFeature>();
+    public DbSet<PlanTeamJudgment> PlanTeamJudgments => Set<PlanTeamJudgment>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -106,6 +107,22 @@ public class AppDbContext : DbContext
             .WithMany()
             .HasForeignKey(pf => pf.GameSessionPlannableLayerId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<PlanTeamJudgment>()
+            .Property(j => j.Judgment)
+            .HasConversion<string>();
+
+        modelBuilder.Entity<PlanTeamJudgment>()
+            .HasOne(j => j.Plan)
+            .WithMany(p => p.Judgments)
+            .HasForeignKey(j => j.PlanId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<PlanTeamJudgment>()
+            .HasOne(j => j.Team)
+            .WithMany()
+            .HasForeignKey(j => j.TeamId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         // Seed initial MapLayerDefinition catalog items
         modelBuilder.Entity<MapLayerDefinition>().HasData(

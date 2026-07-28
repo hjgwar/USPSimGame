@@ -20,6 +20,9 @@ public partial class PlanAddEditPanel : ComponentBase
     public IPlanService PlanService { get; set; } = default!;
 
     [Inject]
+    public IPlanApprovalEvaluationService EvaluationService { get; set; } = default!;
+
+    [Inject]
     public IMapLayerService MapLayerService { get; set; } = default!;
 
     [Inject]
@@ -235,11 +238,32 @@ public partial class PlanAddEditPanel : ComponentBase
                 {
                     DraftFeatures.Remove(existing);
                 }
+
+                await ReevaluateRealtimeSpatialConditionsAsync();
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"[PlanAddEditPanel] Error syncing GeoJSON for layer {_previousSelectedPlannableLayerId}: {ex.Message}");
             }
+        }
+    }
+
+    protected PlanApprovalEvaluation? RealtimeEvaluation { get; set; }
+
+    protected async Task ReevaluateRealtimeSpatialConditionsAsync()
+    {
+        try
+        {
+            var geoms = DraftFeatures
+                .Where(f => !string.IsNullOrWhiteSpace(f.GeoJsonGeometry))
+                .Select(f => f.GeoJsonGeometry!)
+                .ToList();
+
+            RealtimeEvaluation = await EvaluationService.EvaluatePlanGeometryAsync(GameSessionId, TeamId, geoms);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[PlanAddEditPanel] Error in spatial evaluation: {ex.Message}");
         }
     }
 

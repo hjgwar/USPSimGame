@@ -11,6 +11,7 @@ public class PlanService : IPlanService
 
     public event Func<int, Plan, Task>? OnPlanCreated;
     public event Func<int, Task>? OnPlanLockChanged;
+    public event Func<int, Task>? OnPlanJudgmentsUpdated;
 
     public PlanService(
         IDbContextFactory<AppDbContext> dbContextFactory,
@@ -225,9 +226,80 @@ public class PlanService : IPlanService
             await context.SaveChangesAsync();
             _logger.LogInformation("PlanService: Updated Plan #{PlanId} state to {State}", planId, newState);
 
+            if (newState == PlanState.Draft)
+            {
+                await ResetPlanJudgmentsAsync(planId);
+            }
+
             if (OnPlanLockChanged != null)
             {
-                await OnPlanLockChanged.Invoke(plan.GameSessionId);
+                try { await OnPlanLockChanged.Invoke(plan.GameSessionId); } catch { }
+            }
+        }
+    }
+
+    public async Task<List<PlanTeamJudgment>> GetPlanJudgmentsAsync(int planId)
+    {
+        await using var context = await _dbContextFactory.CreateDbContextAsync();
+        return await context.PlanTeamJudgments
+            .Include(j => j.Team)
+            .Where(j => j.PlanId == planId)
+            .ToListAsync();
+    }
+
+    public async Task SubmitTeamJudgmentAsync(int planId, int teamId, PlanJudgmentType judgment)
+    {
+        await using var context = await _dbContextFactory.CreateDbContextAsync();
+        var plan = await context.Plans.FindAsync(planId);
+        if (plan == null) return;
+
+        var existing = await context.PlanTeamJudgments
+            .FirstOrDefaultAsync(j => j.PlanId == planId && j.TeamId == teamId);
+
+        if (existing == null)
+        {
+            context.PlanTeamJudgments.Add(new PlanTeamJudgment
+            {
+                PlanId = planId,
+                TeamId = teamId,
+                Judgment = judgment,
+                UpdatedAt = DateTime.UtcNow
+            });
+        }
+        else
+        {
+            existing.Judgment = judgment;
+            existing.UpdatedAt = DateTime.UtcNow;
+        }
+
+        await context.SaveChangesAsync();
+        _logger.LogInformation("PlanService: Team #{TeamId} submitted judgment '{Judgment}' for Plan #{PlanId}", teamId, judgment, planId);
+
+        if (OnPlanJudgmentsUpdated != null)
+        {
+            try { await OnPlanJudgmentsUpdated.Invoke(plan.GameSessionId); } catch { }
+        }
+    }
+
+    public async Task ResetPlanJudgmentsAsync(int planId)
+    {
+        await using var context = await _dbContextFactory.CreateDbContextAsync();
+        var plan = await context.Plans.FindAsync(planId);
+        if (plan == null) return;
+
+        var existingList = await context.PlanTeamJudgments
+            .Where(j => j.PlanId == planId)
+            .ToListAsync();
+
+        if (existingList.Any())
+        {
+            context.PlanTeamJudgments.RemoveRange(existingList);
+            await context.SaveChangesAsync();
+            _logger.LogInformation("PlanService: Reset judgments for Plan #{PlanId}", planId);
+
+            if (OnPlanJudgmentsUpdated != null)
+            {
+                try { await OnPlanJudgmentsUpdated.Invoke(plan.GameSessionId); } catch { }
             }
         }
     }

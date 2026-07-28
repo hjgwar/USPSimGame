@@ -70,6 +70,7 @@ else
                        StartYear="@(PlayerSessionState.CurrentGameSession?.StartYear ?? 2026)"
                        CurrentTeamId="@(PlayerSessionState.CurrentTeam?.Id ?? 0)"
                        CurrentPlayerSessionId="@(PlayerSessionState.CurrentPlayerSession?.Id ?? 0)"
+                       SessionTeams="@SessionTeams"
                        OnEditPlan="HandleEditPlanAsync"
                        OnClose="ClosePlanViewAsync" />
     }

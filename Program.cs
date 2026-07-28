@@ -33,6 +33,7 @@ builder.Services.AddScoped<IGameSessionService, GameSessionService>();
 builder.Services.AddScoped<ITeamService, TeamService>();
 builder.Services.AddScoped<IPlayerSessionService, PlayerSessionService>();
 builder.Services.AddScoped<IPlanService, PlanService>();
+builder.Services.AddScoped<IPlanApprovalEvaluationService, PlanApprovalEvaluationService>();
 builder.Services.AddScoped<CreatorAuthState>();
 builder.Services.AddScoped<PlayerSessionState>();
 

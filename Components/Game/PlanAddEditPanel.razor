@@ -20,6 +20,14 @@
                 </div>
             }
 
+            @if (RealtimeEvaluation != null && !string.IsNullOrWhiteSpace(RealtimeEvaluation.ExplanatoryText))
+            {
+                <div class="alert @(RealtimeEvaluation.RequiresMultiTeamApproval ? "alert-warning" : "alert-info") py-2 px-3 mb-3 extra-small border-0 shadow-sm d-flex align-items-start gap-2">
+                    <i class="bi @(RealtimeEvaluation.RequiresMultiTeamApproval ? "bi-exclamation-triangle-fill text-warning" : "bi-info-circle-fill text-info") mt-1 fs-6"></i>
+                    <div>@RealtimeEvaluation.ExplanatoryText</div>
+                </div>
+            }
+
             @if (IsLoading)
             {
                 <div class="text-center py-4">

@@ -1,8 +1,10 @@
 @namespace USPSimGame.Components.Game
 @using USPSimGame.Data.Entities
+@using USPSimGame.Services.Plans
+@using USPSimGame.Services
 
 <div class="plan-view-panel-container position-fixed bottom-0 end-0 m-3 z-3">
-    <div class="card border-0 shadow-lg rounded-4 overflow-hidden plan-view-card" style="width: 360px; max-width: calc(100vw - 32px);">
+    <div class="card border-0 shadow-lg rounded-4 overflow-hidden plan-view-card" style="width: 380px; max-width: calc(100vw - 32px);">
         <!-- Header -->
         <div class="card-header bg-transparent border-bottom p-3 d-flex align-items-center justify-content-between">
             <div class="d-flex align-items-center gap-2 overflow-hidden">
@@ -12,7 +14,8 @@
             <button class="btn-close ms-2 flex-shrink-0" @onclick="CloseAsync" title="Close plan view"></button>
         </div>
 
-        <div class="card-body p-3 overflow-auto" style="max-height: 380px;">
+        <div class="card-body p-3 overflow-auto" style="max-height: 420px;">
+            <!-- State & Date row -->
             <div class="d-flex justify-content-between align-items-center mb-3">
                 @if (CanChangeState)
                 {
@@ -23,22 +26,19 @@
                         </button>
                         @if (IsDropdownOpen)
                         {
-                            <ul class="dropdown-menu show shadow border-0 rounded-3 p-1 position-absolute top-100 start-0 z-3 mt-1" style="display: block; min-width: 160px;">
-                                @foreach (PlanState stateOpt in Enum.GetValues<PlanState>())
+                            <ul class="dropdown-menu show shadow border-0 rounded-3 p-1 position-absolute top-100 start-0 z-3 mt-1" style="display: block; min-width: 170px;">
+                                @foreach (PlanState stateOpt in GetAvailableStates())
                                 {
-                                    if (stateOpt != PlanState.Implemented)
-                                    {
-                                        <li>
-                                            <button type="button" class="dropdown-item rounded-2 small d-flex align-items-center justify-content-between py-1 @(stateOpt == Plan.State ? "fw-bold active" : "")"
-                                                    @onclick="() => ChangeStateAsync(stateOpt)">
-                                                <span class="badge border font-monospace @GetStateBadgeClass(stateOpt)">@stateOpt</span>
-                                                @if (stateOpt == Plan.State)
-                                                {
-                                                    <i class="bi bi-check2 ms-2"></i>
-                                                }
-                                            </button>
-                                        </li>
-                                    }
+                                    <li>
+                                        <button type="button" class="dropdown-item rounded-2 small d-flex align-items-center justify-content-between py-1 @(stateOpt == Plan.State ? "fw-bold active" : "")"
+                                                @onclick="() => ChangeStateAsync(stateOpt)">
+                                            <span class="badge border font-monospace @GetStateBadgeClass(stateOpt)">@stateOpt</span>
+                                            @if (stateOpt == Plan.State)
+                                            {
+                                                <i class="bi bi-check2 ms-2"></i>
+                                            }
+                                        </button>
+                                    </li>
                                 }
                             </ul>
                         }
@@ -54,6 +54,61 @@
                     <i class="bi bi-calendar-check text-primary me-1"></i>@FormatMonthYear(Plan.StartMonth)
                 </span>
             </div>
+
+            <!-- Spatial Evaluation Explanation Banner -->
+            @if (Evaluation != null && !string.IsNullOrWhiteSpace(Evaluation.ExplanatoryText))
+            {
+                <div class="alert @(Evaluation.RequiresMultiTeamApproval ? "alert-warning" : "alert-success") py-2 px-3 mb-3 extra-small border-0 shadow-sm d-flex align-items-start gap-2">
+                    <i class="bi @(Evaluation.RequiresMultiTeamApproval ? "bi-exclamation-triangle-fill text-warning" : "bi-check-circle-fill text-success") mt-1 fs-6"></i>
+                    <div>@Evaluation.ExplanatoryText</div>
+                </div>
+            }
+
+            <!-- Requested State Judgments Indicator -->
+            @if (Plan.State == PlanState.Requested)
+            {
+                <div class="p-2.5 rounded-3 border mb-3 bg-light shadow-sm">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <span class="fw-bold text-dark extra-small">
+                            <i class="bi bi-people-fill text-primary me-1"></i>Team Judgments Status
+                        </span>
+                        <button type="button" class="btn btn-xs btn-outline-primary rounded-pill px-2 py-0.5 extra-small" @onclick="OpenJudgmentPanel">
+                            <i class="bi bi-box-arrow-up-right me-1"></i>View Judgments
+                        </button>
+                    </div>
+
+                    <div class="d-flex flex-wrap gap-1">
+                        @foreach (var team in SessionTeams.Where(t => Evaluation?.RequiredTeamIds.Contains(t.Id) ?? false))
+                        {
+                            var j = Judgments.FirstOrDefault(x => x.TeamId == team.Id);
+                            var currentType = j?.Judgment ?? PlanJudgmentType.Undecided;
+                            <span class="badge @GetJudgmentBadgeClass(currentType) border extra-small" title="@team.Name: @currentType">
+                                <span style="display:inline-block; width:8px; height:8px; border-radius:50%; background-color:@team.Color;" class="me-1"></span>
+                                @team.Name: @currentType
+                            </span>
+                        }
+                    </div>
+
+                    <!-- Confirmation Notice for Owning Team -->
+                    @if (Plan.TeamId == CurrentTeamId)
+                    {
+                        @if (CanApprovePlan)
+                        {
+                            <div class="alert alert-success py-2 px-3 mt-2 mb-0 extra-small border-0 shadow-sm d-flex align-items-center justify-content-between">
+                                <div><strong class="d-block">Set to Approved?</strong><span class="micro-text">All required teams approved or joined.</span></div>
+                                <button type="button" class="btn btn-sm btn-success fw-bold ms-2" @onclick="() => ChangeStateAsync(PlanState.Approved)">Confirm Approval</button>
+                            </div>
+                        }
+                        else if (HasRejections)
+                        {
+                            <div class="alert alert-danger py-2 px-3 mt-2 mb-0 extra-small border-0 shadow-sm d-flex align-items-center justify-content-between">
+                                <div><strong class="d-block">Set to Archived?</strong><span class="micro-text">One or more teams rejected this plan.</span></div>
+                                <button type="button" class="btn btn-sm btn-danger fw-bold ms-2" @onclick="() => ChangeStateAsync(PlanState.Archived)">Confirm Archive</button>
+                            </div>
+                        }
+                    }
+                </div>
+            }
 
             <p class="text-muted small mb-3">
                 @(string.IsNullOrWhiteSpace(Plan.Description) ? "No plan description provided." : Plan.Description)
@@ -114,3 +169,9 @@
         </div>
     </div>
 </div>
+
+<!-- Plan Judgment Side Panel -->
+<PlanJudgmentPanel @bind-IsOpen="IsJudgmentPanelOpen"
+                   TargetPlan="Plan"
+                   SessionTeams="SessionTeams"
+                   OnJudgmentsUpdated="HandleJudgmentsUpdated" />

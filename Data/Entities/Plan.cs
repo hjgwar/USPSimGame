@@ -36,4 +36,6 @@ public class Plan
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
     public ICollection<PlanFeature> Features { get; set; } = new List<PlanFeature>();
+
+    public ICollection<PlanTeamJudgment> Judgments { get; set; } = new List<PlanTeamJudgment>();
 }

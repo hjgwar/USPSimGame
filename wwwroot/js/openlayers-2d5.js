@@ -1032,6 +1032,8 @@ window.uspsim2d5 = {
                 zIndex: 990
             });
             map.addLayer(window._teamAreasLayer);
+        } else if (!map.getLayers().getArray().includes(window._teamAreasLayer)) {
+            map.addLayer(window._teamAreasLayer);
         }
 
         window._teamAreasSource.clear();
