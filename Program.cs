@@ -30,6 +30,9 @@ builder.Services.AddDbContextFactory<AppDbContext>(options =>
 
 // Register Application Services
 builder.Services.AddSingleton<IPasswordHasher, PasswordHasherService>();
+builder.Services.AddSingleton<IGameSessionNotifierService, GameSessionNotifierService>();
+builder.Services.AddSingleton<ITeamNotifierService, TeamNotifierService>();
+builder.Services.AddSingleton<IPlanNotifierService, PlanNotifierService>();
 builder.Services.AddScoped<IPresetFileService, PresetFileService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IGameSessionService, GameSessionService>();
@@ -39,6 +42,9 @@ builder.Services.AddScoped<IPlanService, PlanService>();
 builder.Services.AddScoped<IPlanApprovalEvaluationService, PlanApprovalEvaluationService>();
 builder.Services.AddScoped<ICostCalculationService, CostCalculationService>();
 builder.Services.AddScoped<ITeamBudgetService, TeamBudgetService>();
+builder.Services.AddScoped<USPSimGame.Services.Simulation.ISimulationOrchestratorService, USPSimGame.Services.Simulation.SimulationOrchestratorService>();
+builder.Services.AddSingleton<USPSimGame.Services.Simulation.ISimulatorModule, USPSimGame.Services.Simulation.Modules.SampleEnergySimulatorModule>();
+builder.Services.AddHostedService<USPSimGame.Services.Simulation.GameLoopBackgroundService>();
 builder.Services.AddScoped<CreatorAuthState>();
 builder.Services.AddScoped<PlayerSessionState>();
 

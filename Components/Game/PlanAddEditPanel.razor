@@ -54,23 +54,39 @@
                         <textarea class="form-control form-control-sm" rows="2" @bind="Description" placeholder="Optional notes or plan description..."></textarea>
                     </div>
 
+                    <!-- Dynamic Construction Time Banner -->
+                    <div class="alert @(IsConstructionTimeValid ? "alert-info" : "alert-danger") border-0 py-2 px-3 mb-1 extra-small shadow-sm">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi @(IsConstructionTimeValid ? "bi-tools text-info" : "bi-exclamation-triangle-fill text-danger") fs-6"></i>
+                            <div>
+                                <strong>Construction Duration: @CalculatedConstructionMonths month(s)</strong>
+                                @if (CalculatedConstructionMonths > 0)
+                                {
+                                    <div class="text-muted">
+                                        Construction starts: <strong>@USPSimGame.Utils.CommonGameUtils.FormatMonthYear(((SelectedYear - StartYear) * 12) + (SelectedMonth - 1) - CalculatedConstructionMonths, StartYear)</strong>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                        @if (!IsConstructionTimeValid && ConstructionTimeWarningMessage != null)
+                        {
+                            <div class="mt-1 text-danger fw-semibold">
+                                @ConstructionTimeWarningMessage
+                            </div>
+                        }
+                    </div>
+
                     <div>
                         <label class="form-label fw-bold text-dark small mb-1">Implementation Target Date</label>
                         <div class="row g-2">
                             <div class="col-6">
                                 <select class="form-select form-select-sm" @bind="SelectedMonth">
-                                    <option value="1">January</option>
-                                    <option value="2">February</option>
-                                    <option value="3">March</option>
-                                    <option value="4">April</option>
-                                    <option value="5">May</option>
-                                    <option value="6">June</option>
-                                    <option value="7">July</option>
-                                    <option value="8">August</option>
-                                    <option value="9">September</option>
-                                    <option value="10">October</option>
-                                    <option value="11">November</option>
-                                    <option value="12">December</option>
+                                    @for (int m = 1; m <= 12; m++)
+                                    {
+                                        int testMonth = ((SelectedYear - StartYear) * 12) + (m - 1);
+                                        bool isDisabled = testMonth < MinimumAllowedCompletionMonth;
+                                        <option value="@m" disabled="@isDisabled">@System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(m)</option>
+                                    }
                                 </select>
                             </div>
                             <div class="col-6">
@@ -156,7 +172,7 @@
             <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3" @onclick="CancelAsync" disabled="@IsSaving">
                 Cancel
             </button>
-            <button type="button" class="btn btn-sm @(IsEditMode ? "btn-primary" : "btn-success") rounded-pill px-4" @onclick="SavePlanAsync" disabled="@(IsSaving || !SessionPlannableLayers.Any())">
+            <button type="button" class="btn btn-sm @(IsEditMode ? "btn-primary" : "btn-success") rounded-pill px-4" @onclick="SavePlanAsync" disabled="@(IsSaving || !SessionPlannableLayers.Any() || !IsConstructionTimeValid)">
                 @if (IsSaving)
                 {
                     <span class="spinner-border spinner-border-sm me-1" role="status"></span>

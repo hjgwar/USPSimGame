@@ -23,7 +23,7 @@ public class CostCalculationService : ICostCalculationService
 
         double quantity = GeoJsonSpatialUtils.CalculateFeatureQuantity(geoJson, definition.GeometryType);
         double investment = Math.Round(quantity * definition.InvestmentPointsPerUnit, 1);
-        double monthlyExpense = Math.Round(quantity * definition.MonthlyExpensePointsPerUnit, 1);
+        double monthlyExpense = Math.Round(definition.BaseMonthlyExpensePoints + (quantity * definition.MonthlyExpensePointsPerUnit), 1);
 
         return new PlanCostEstimate
         {
@@ -97,5 +97,49 @@ public class CostCalculationService : ICostCalculationService
         int potentialTeams = Math.Max(joinedCount, totalSessionTeams);
 
         return CalculateDraftPlanCost(featurePairs, joinedCount, potentialTeams);
+    }
+
+    public int CalculateFeatureConstructionTimeMonths(PlannableLayerDefinition definition, string? geoJson)
+    {
+        if (definition == null || string.IsNullOrWhiteSpace(geoJson))
+        {
+            return 0;
+        }
+
+        double quantity = GeoJsonSpatialUtils.CalculateFeatureQuantity(geoJson, definition.GeometryType);
+        double rawMonths = definition.BaseConstructionTimeMonths + (quantity * definition.ConstructionTimeModifierPerUnit);
+        return (int)Math.Ceiling(Math.Max(0, rawMonths));
+    }
+
+    public int CalculateDraftPlanConstructionTimeMonths(IEnumerable<(PlannableLayerDefinition def, string? geoJson)> features)
+    {
+        int maxMonths = 0;
+        foreach (var (def, geoJson) in features)
+        {
+            if (def != null && !string.IsNullOrWhiteSpace(geoJson))
+            {
+                int layerMonths = CalculateFeatureConstructionTimeMonths(def, geoJson);
+                maxMonths = Math.Max(maxMonths, layerMonths);
+            }
+        }
+        return maxMonths;
+    }
+
+    public async Task<int> CalculatePlanConstructionTimeMonthsAsync(int planId)
+    {
+        await using var context = await _dbContextFactory.CreateDbContextAsync();
+        var plan = await context.Plans
+            .Include(p => p.Features)
+                .ThenInclude(f => f.GameSessionPlannableLayer)
+                    .ThenInclude(l => l!.PlannableLayerDefinition)
+            .FirstOrDefaultAsync(p => p.Id == planId);
+
+        if (plan == null) return 0;
+
+        var featurePairs = plan.Features
+            .Where(f => f.GameSessionPlannableLayer?.PlannableLayerDefinition != null && !string.IsNullOrWhiteSpace(f.GeoJsonGeometry))
+            .Select(f => (f.GameSessionPlannableLayer!.PlannableLayerDefinition, f.GeoJsonGeometry));
+
+        return CalculateDraftPlanConstructionTimeMonths(featurePairs);
     }
 }

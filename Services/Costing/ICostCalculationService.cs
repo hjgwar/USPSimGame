@@ -20,4 +20,8 @@ public interface ICostCalculationService
     PlanCostEstimate CalculateFeatureCost(PlannableLayerDefinition definition, string? geoJson);
     PlanCostEstimate CalculateDraftPlanCost(IEnumerable<(PlannableLayerDefinition def, string? geoJson)> features, int confirmedJoinedTeams = 1, int potentialTotalTeams = 1);
     Task<PlanCostEstimate> CalculatePlanCostAsync(int planId);
+
+    int CalculateFeatureConstructionTimeMonths(PlannableLayerDefinition definition, string? geoJson);
+    int CalculateDraftPlanConstructionTimeMonths(IEnumerable<(PlannableLayerDefinition def, string? geoJson)> features);
+    Task<int> CalculatePlanConstructionTimeMonthsAsync(int planId);
 }

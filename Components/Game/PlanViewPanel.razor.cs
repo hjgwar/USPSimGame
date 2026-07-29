@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Components;
 using USPSimGame.Data.Entities;
+using USPSimGame.Services;
 using USPSimGame.Services.Plans;
 
 namespace USPSimGame.Components.Game;
@@ -7,6 +8,7 @@ namespace USPSimGame.Components.Game;
 public partial class PlanViewPanel : ComponentBase, IDisposable
 {
     [Inject] public IPlanService PlanService { get; set; } = default!;
+    [Inject] public IPlanNotifierService PlanNotifier { get; set; } = default!;
     [Inject] public IPlanApprovalEvaluationService EvaluationService { get; set; } = default!;
     [Inject] public USPSimGame.Services.CreatorAuthState AdminAuthState { get; set; } = default!;
 
@@ -31,7 +33,7 @@ public partial class PlanViewPanel : ComponentBase, IDisposable
     protected bool IsLockedByOther => !string.IsNullOrEmpty(Plan.LockedBySessionId) &&
                                      Plan.LockedBySessionId != CurrentPlayerSessionId.ToString();
 
-    protected bool CanChangeState => (Plan.TeamId == CurrentTeamId || AdminAuthState.IsAuthenticated) && Plan.State != PlanState.Implemented;
+    protected bool CanChangeState => (Plan.TeamId == CurrentTeamId || AdminAuthState.IsAuthenticated) && Plan.State != PlanState.Implemented && Plan.State != PlanState.Implementing;
 
     protected bool CanApprovePlan
     {
@@ -66,13 +68,18 @@ public partial class PlanViewPanel : ComponentBase, IDisposable
 
     protected override void OnInitialized()
     {
-        PlanService.OnPlanJudgmentsUpdated += HandleJudgmentsUpdatedEvent;
+        PlanNotifier.OnPlansChanged += HandleJudgmentsUpdatedEvent;
     }
 
     private async Task HandleJudgmentsUpdatedEvent(int gameSessionId)
     {
         if (Plan != null && Plan.GameSessionId == gameSessionId)
         {
+            var updatedPlan = await PlanService.GetPlanDetailsAsync(Plan.Id);
+            if (updatedPlan != null)
+            {
+                Plan = updatedPlan;
+            }
             await LoadEvaluationAndJudgmentsAsync();
             await InvokeAsync(StateHasChanged);
         }
@@ -151,7 +158,7 @@ public partial class PlanViewPanel : ComponentBase, IDisposable
     protected async Task ChangeStateAsync(PlanState newState)
     {
         IsDropdownOpen = false;
-        if (newState == PlanState.Implemented || !CanChangeState) return;
+        if (newState == PlanState.Implemented || newState == PlanState.Implementing || !CanChangeState) return;
 
         Plan.State = newState;
         await PlanService.UpdatePlanStateAsync(Plan.Id, newState);
@@ -171,6 +178,7 @@ public partial class PlanViewPanel : ComponentBase, IDisposable
             PlanState.Consultation => "bg-warning-subtle text-dark border-warning-subtle",
             PlanState.Requested => "bg-info-subtle text-info border-info-subtle",
             PlanState.Approved => "bg-primary-subtle text-primary border-primary-subtle",
+            PlanState.Implementing => "bg-warning text-dark border-warning-subtle",
             PlanState.Implemented => "bg-success-subtle text-success border-success-subtle",
             PlanState.Archived => "bg-dark-subtle text-muted border-dark-subtle",
             _ => "bg-light text-dark"
@@ -190,6 +198,6 @@ public partial class PlanViewPanel : ComponentBase, IDisposable
 
     public void Dispose()
     {
-        PlanService.OnPlanJudgmentsUpdated -= HandleJudgmentsUpdatedEvent;
+        PlanNotifier.OnPlansChanged -= HandleJudgmentsUpdatedEvent;
     }
 }

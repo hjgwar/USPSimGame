@@ -45,4 +45,23 @@ public partial class PlannableLayerCatalogModal : ComponentBase
             _ => ""
         };
     }
+
+    protected MarkupString GetExpenseDisplay(PlannableLayerDefinition def)
+    {
+        int durationYears = def.DefaultExpenseDurationMonths > 0 ? def.DefaultExpenseDurationMonths / 12 : 10;
+        string unitSuffix = GetUnitSuffix(def.GeometryType);
+
+        if (def.BaseMonthlyExpensePoints > 0 && def.MonthlyExpensePointsPerUnit > 0)
+        {
+            return new MarkupString($"{def.BaseMonthlyExpensePoints} + {def.MonthlyExpensePointsPerUnit} pts / month {unitSuffix}<br/>(for {durationYears} yrs)");
+        }
+        else if (def.BaseMonthlyExpensePoints > 0)
+        {
+            return new MarkupString($"{def.BaseMonthlyExpensePoints} pts / month {unitSuffix}<br/>(for {durationYears} yrs)");
+        }
+        else
+        {
+            return new MarkupString($"{def.MonthlyExpensePointsPerUnit} pts / month {unitSuffix}<br/>(for {durationYears} yrs)");
+        }
+    }
 }

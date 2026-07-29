@@ -31,6 +31,9 @@ public partial class PlanAddEditPanel : ComponentBase
     [Inject]
     public IJSRuntime JSRuntime { get; set; } = default!;
 
+    [Inject]
+    public USPSimGame.Services.PlayerSessionState PlayerSessionState { get; set; } = default!;
+
     [Parameter, EditorRequired]
     public int GameSessionId { get; set; }
 
@@ -55,8 +58,33 @@ public partial class PlanAddEditPanel : ComponentBase
     protected string PlanName { get; set; } = string.Empty;
     protected string Description { get; set; } = string.Empty;
 
-    protected int SelectedMonth { get; set; } = 1;
-    protected int SelectedYear { get; set; } = 2026;
+    private int _selectedMonth = 1;
+    private int _selectedYear = 2026;
+
+    protected int SelectedMonth
+    {
+        get => _selectedMonth;
+        set
+        {
+            _selectedMonth = value;
+            ValidateSelectedTargetDate();
+        }
+    }
+
+    protected int SelectedYear
+    {
+        get => _selectedYear;
+        set
+        {
+            _selectedYear = value;
+            ValidateSelectedTargetDate();
+        }
+    }
+
+    protected int CalculatedConstructionMonths { get; set; } = 0;
+    protected int MinimumAllowedCompletionMonth { get; set; } = 0;
+    protected string? ConstructionTimeWarningMessage { get; set; }
+    protected bool IsConstructionTimeValid { get; set; } = true;
 
     protected List<GameSessionPlannableLayer> SessionPlannableLayers { get; set; } = new();
     protected int SelectedPlannableLayerId { get; set; } = 0;
@@ -315,10 +343,42 @@ public partial class PlanAddEditPanel : ComponentBase
                 .ToList();
 
             RealtimeEvaluation = await EvaluationService.EvaluatePlanGeometryAsync(GameSessionId, TeamId, geoms);
+
+            // Calculate dynamic construction time from draft features
+            var featurePairs = DraftFeatures
+                .Where(f => f.Layer?.PlannableLayerDefinition != null && !string.IsNullOrWhiteSpace(f.GeoJsonGeometry))
+                .Select(f => (f.Layer.PlannableLayerDefinition, f.GeoJsonGeometry));
+
+            CalculatedConstructionMonths = CostCalculationService.CalculateDraftPlanConstructionTimeMonths(featurePairs);
+
+            int currentMonth = PlayerSessionState.CurrentGameSession?.CurrentMonth ?? 0;
+            MinimumAllowedCompletionMonth = currentMonth + CalculatedConstructionMonths;
+
+            ValidateSelectedTargetDate();
         }
         catch (Exception ex)
         {
             Console.WriteLine($"[PlanAddEditPanel] Error in spatial evaluation: {ex.Message}");
+        }
+    }
+
+    protected void ValidateSelectedTargetDate()
+    {
+        int selectedTargetMonth = ((SelectedYear - StartYear) * 12) + (SelectedMonth - 1);
+        if (selectedTargetMonth < MinimumAllowedCompletionMonth)
+        {
+            IsConstructionTimeValid = false;
+            int reqStartMonth = selectedTargetMonth - CalculatedConstructionMonths;
+            string reqStartFormatted = USPSimGame.Utils.CommonGameUtils.FormatMonthYear(reqStartMonth, StartYear);
+            string minCompFormatted = USPSimGame.Utils.CommonGameUtils.FormatMonthYear(MinimumAllowedCompletionMonth, StartYear);
+            string selTargetFormatted = USPSimGame.Utils.CommonGameUtils.FormatMonthYear(selectedTargetMonth, StartYear);
+
+            ConstructionTimeWarningMessage = $"Construction requires {CalculatedConstructionMonths} month(s). Completion by {selTargetFormatted} would require starting in {reqStartFormatted} (in the past). Earliest completion is {minCompFormatted}.";
+        }
+        else
+        {
+            IsConstructionTimeValid = true;
+            ConstructionTimeWarningMessage = null;
         }
     }
 
@@ -371,6 +431,14 @@ public partial class PlanAddEditPanel : ComponentBase
             if (!payloads.Any())
             {
                 ErrorMessage = "Please draw shape geometry for at least one layer before saving.";
+                IsSaving = false;
+                return;
+            }
+
+            ValidateSelectedTargetDate();
+            if (!IsConstructionTimeValid)
+            {
+                ErrorMessage = ConstructionTimeWarningMessage ?? "The selected completion date does not provide enough lead time for construction.";
                 IsSaving = false;
                 return;
             }

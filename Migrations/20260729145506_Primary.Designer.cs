@@ -12,7 +12,7 @@ using USPSimGame.Data;
 namespace USPSimGame.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260729074523_Primary")]
+    [Migration("20260729145506_Primary")]
     partial class Primary
     {
         /// <inheritdoc />
@@ -43,9 +43,15 @@ namespace USPSimGame.Migrations
                     b.Property<int>("CurrentMonth")
                         .HasColumnType("integer");
 
+                    b.Property<int>("MonthDurationSeconds")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<int?>("RemainingSecondsOnPause")
+                        .HasColumnType("integer");
 
                     b.Property<int>("StartYear")
                         .HasColumnType("integer");
@@ -53,6 +59,9 @@ namespace USPSimGame.Migrations
                     b.Property<string>("State")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<DateTime?>("TargetMonthEndUtc")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("Zoom")
                         .HasColumnType("integer");
@@ -363,9 +372,18 @@ namespace USPSimGame.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<int>("BaseConstructionTimeMonths")
+                        .HasColumnType("integer");
+
+                    b.Property<double>("BaseMonthlyExpensePoints")
+                        .HasColumnType("double precision");
+
                     b.Property<string>("Category")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<double>("ConstructionTimeModifierPerUnit")
+                        .HasColumnType("double precision");
 
                     b.Property<string>("DefaultColor")
                         .HasColumnType("text");
@@ -417,7 +435,10 @@ namespace USPSimGame.Migrations
                         new
                         {
                             Id = 1,
+                            BaseConstructionTimeMonths = 6,
+                            BaseMonthlyExpensePoints = 2.0,
                             Category = "Infrastructure",
+                            ConstructionTimeModifierPerUnit = 0.0001,
                             DefaultColor = "#f59e0b",
                             DefaultExpenseDurationMonths = 120,
                             DefaultLineWidthPx = 2.5,
@@ -433,7 +454,10 @@ namespace USPSimGame.Migrations
                         new
                         {
                             Id = 2,
+                            BaseConstructionTimeMonths = 12,
+                            BaseMonthlyExpensePoints = 5.0,
                             Category = "Infrastructure",
+                            ConstructionTimeModifierPerUnit = 0.00020000000000000001,
                             DefaultColor = "#06b6d4",
                             DefaultExpenseDurationMonths = 120,
                             DefaultLineWidthPx = 2.5,
@@ -449,7 +473,10 @@ namespace USPSimGame.Migrations
                         new
                         {
                             Id = 3,
+                            BaseConstructionTimeMonths = 1,
+                            BaseMonthlyExpensePoints = 1.0,
                             Category = "Infrastructure",
+                            ConstructionTimeModifierPerUnit = 0.5,
                             DefaultColor = "#10b981",
                             DefaultExpenseDurationMonths = 120,
                             DefaultLineWidthPx = 2.0,
@@ -465,7 +492,10 @@ namespace USPSimGame.Migrations
                         new
                         {
                             Id = 4,
+                            BaseConstructionTimeMonths = 2,
+                            BaseMonthlyExpensePoints = 0.5,
                             Category = "Infrastructure",
+                            ConstructionTimeModifierPerUnit = 0.0050000000000000001,
                             DefaultColor = "#3b82f6",
                             DefaultExpenseDurationMonths = 120,
                             DefaultLineWidthPx = 3.5,
@@ -481,7 +511,10 @@ namespace USPSimGame.Migrations
                         new
                         {
                             Id = 5,
+                            BaseConstructionTimeMonths = 4,
+                            BaseMonthlyExpensePoints = 3.0,
                             Category = "Infrastructure",
+                            ConstructionTimeModifierPerUnit = 1.0,
                             DefaultColor = "#ef4444",
                             DefaultExpenseDurationMonths = 120,
                             DefaultLineWidthPx = 2.0,
@@ -523,6 +556,132 @@ namespace USPSimGame.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("PlayerSessions");
+                });
+
+            modelBuilder.Entity("USPSimGame.Data.Entities.SimulationKpiOutput", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("GameSessionId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("KpiName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("SimulatedMonth")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("SimulatorKey")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int?>("TeamId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Unit")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<double>("Value")
+                        .HasColumnType("double precision");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GameSessionId");
+
+                    b.HasIndex("TeamId");
+
+                    b.ToTable("SimulationKpiOutputs");
+                });
+
+            modelBuilder.Entity("USPSimGame.Data.Entities.SimulationMapOutput", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("BoundingBoxJson")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("DataType")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("GameSessionId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("GeoJsonOrImageData")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("LayerName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("SimulatedMonth")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("SimulatorKey")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GameSessionId");
+
+                    b.ToTable("SimulationMapOutputs");
+                });
+
+            modelBuilder.Entity("USPSimGame.Data.Entities.SimulationModuleDefinition", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text");
+
+                    b.Property<string>("EndpointUrlOrPath")
+                        .HasColumnType("text");
+
+                    b.Property<int>("ExecutionOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("RequiredTags")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("SimulatorType")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("SimulationModuleDefinitions");
                 });
 
             modelBuilder.Entity("USPSimGame.Data.Entities.Team", b =>
@@ -697,6 +856,34 @@ namespace USPSimGame.Migrations
                     b.Navigation("Plan");
 
                     b.Navigation("Team");
+                });
+
+            modelBuilder.Entity("USPSimGame.Data.Entities.SimulationKpiOutput", b =>
+                {
+                    b.HasOne("USPSimGame.Data.Entities.GameSession", "GameSession")
+                        .WithMany()
+                        .HasForeignKey("GameSessionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("USPSimGame.Data.Entities.Team", "Team")
+                        .WithMany()
+                        .HasForeignKey("TeamId");
+
+                    b.Navigation("GameSession");
+
+                    b.Navigation("Team");
+                });
+
+            modelBuilder.Entity("USPSimGame.Data.Entities.SimulationMapOutput", b =>
+                {
+                    b.HasOne("USPSimGame.Data.Entities.GameSession", "GameSession")
+                        .WithMany()
+                        .HasForeignKey("GameSessionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("GameSession");
                 });
 
             modelBuilder.Entity("USPSimGame.Data.Entities.Team", b =>

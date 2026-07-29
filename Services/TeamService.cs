@@ -8,14 +8,14 @@ public class TeamService : ITeamService
 {
     private readonly IDbContextFactory<AppDbContext> _dbContextFactory;
     private readonly IPasswordHasher _passwordHasher;
+    private readonly ITeamNotifierService _teamNotifier;
     private readonly ILogger<TeamService> _logger;
 
-    public event Func<int, Task>? OnTeamAreaChanged;
-
-    public TeamService(IDbContextFactory<AppDbContext> dbContextFactory, IPasswordHasher passwordHasher, ILogger<TeamService> logger)
+    public TeamService(IDbContextFactory<AppDbContext> dbContextFactory, IPasswordHasher passwordHasher, ITeamNotifierService teamNotifier, ILogger<TeamService> logger)
     {
         _dbContextFactory = dbContextFactory;
         _passwordHasher = passwordHasher;
+        _teamNotifier = teamNotifier;
         _logger = logger;
     }
 
@@ -138,10 +138,7 @@ public class TeamService : ITeamService
         team.LockedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
 
-        if (OnTeamAreaChanged != null)
-        {
-            try { await OnTeamAreaChanged.Invoke(team.GameSessionId); } catch { }
-        }
+        await _teamNotifier.NotifyTeamAreaChangedAsync(team.GameSessionId);
 
         return (true, null);
     }
@@ -158,10 +155,7 @@ public class TeamService : ITeamService
             team.LockedAt = null;
             await db.SaveChangesAsync();
 
-            if (OnTeamAreaChanged != null)
-            {
-                try { await OnTeamAreaChanged.Invoke(sessionId); } catch { }
-            }
+            await _teamNotifier.NotifyTeamAreaChangedAsync(sessionId);
         }
     }
 
@@ -175,10 +169,7 @@ public class TeamService : ITeamService
             team.AreaDefinition = areaDefinition;
             await db.SaveChangesAsync();
 
-            if (OnTeamAreaChanged != null)
-            {
-                try { await OnTeamAreaChanged.Invoke(team.GameSessionId); } catch { }
-            }
+            await _teamNotifier.NotifyTeamAreaChangedAsync(team.GameSessionId);
         }
     }
 

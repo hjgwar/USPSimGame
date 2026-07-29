@@ -26,6 +26,9 @@ namespace USPSimGame.Migrations
                     StartYear = table.Column<int>(type: "integer", nullable: false),
                     CurrentMonth = table.Column<int>(type: "integer", nullable: false),
                     State = table.Column<string>(type: "text", nullable: false),
+                    MonthDurationSeconds = table.Column<int>(type: "integer", nullable: false),
+                    TargetMonthEndUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    RemainingSecondsOnPause = table.Column<int>(type: "integer", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
@@ -72,8 +75,11 @@ namespace USPSimGame.Migrations
                     SimulatorTags = table.Column<string>(type: "text", nullable: true),
                     IsEnabledByDefault = table.Column<bool>(type: "boolean", nullable: false),
                     InvestmentPointsPerUnit = table.Column<double>(type: "double precision", nullable: false),
+                    BaseMonthlyExpensePoints = table.Column<double>(type: "double precision", nullable: false),
                     MonthlyExpensePointsPerUnit = table.Column<double>(type: "double precision", nullable: false),
-                    DefaultExpenseDurationMonths = table.Column<int>(type: "integer", nullable: false)
+                    DefaultExpenseDurationMonths = table.Column<int>(type: "integer", nullable: false),
+                    BaseConstructionTimeMonths = table.Column<int>(type: "integer", nullable: false),
+                    ConstructionTimeModifierPerUnit = table.Column<double>(type: "double precision", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -98,6 +104,26 @@ namespace USPSimGame.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "SimulationModuleDefinitions",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    Key = table.Column<string>(type: "text", nullable: false),
+                    Name = table.Column<string>(type: "text", nullable: false),
+                    Description = table.Column<string>(type: "text", nullable: true),
+                    SimulatorType = table.Column<int>(type: "integer", nullable: false),
+                    ExecutionOrder = table.Column<int>(type: "integer", nullable: false),
+                    EndpointUrlOrPath = table.Column<string>(type: "text", nullable: true),
+                    RequiredTags = table.Column<string>(type: "text", nullable: false),
+                    IsEnabled = table.Column<bool>(type: "boolean", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_SimulationModuleDefinitions", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Users",
                 columns: table => new
                 {
@@ -110,6 +136,32 @@ namespace USPSimGame.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Users", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "SimulationMapOutputs",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    GameSessionId = table.Column<int>(type: "integer", nullable: false),
+                    SimulatedMonth = table.Column<int>(type: "integer", nullable: false),
+                    SimulatorKey = table.Column<string>(type: "text", nullable: false),
+                    LayerName = table.Column<string>(type: "text", nullable: false),
+                    DataType = table.Column<int>(type: "integer", nullable: false),
+                    GeoJsonOrImageData = table.Column<string>(type: "text", nullable: false),
+                    BoundingBoxJson = table.Column<string>(type: "text", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_SimulationMapOutputs", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_SimulationMapOutputs_GameSessions_GameSessionId",
+                        column: x => x.GameSessionId,
+                        principalTable: "GameSessions",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -235,6 +287,37 @@ namespace USPSimGame.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "SimulationKpiOutputs",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    GameSessionId = table.Column<int>(type: "integer", nullable: false),
+                    SimulatedMonth = table.Column<int>(type: "integer", nullable: false),
+                    SimulatorKey = table.Column<string>(type: "text", nullable: false),
+                    KpiName = table.Column<string>(type: "text", nullable: false),
+                    Value = table.Column<double>(type: "double precision", nullable: false),
+                    Unit = table.Column<string>(type: "text", nullable: false),
+                    TeamId = table.Column<int>(type: "integer", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_SimulationKpiOutputs", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_SimulationKpiOutputs_GameSessions_GameSessionId",
+                        column: x => x.GameSessionId,
+                        principalTable: "GameSessions",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_SimulationKpiOutputs_Teams_TeamId",
+                        column: x => x.TeamId,
+                        principalTable: "Teams",
+                        principalColumn: "Id");
+                });
+
+            migrationBuilder.CreateTable(
                 name: "PlanFeatures",
                 columns: table => new
                 {
@@ -306,14 +389,14 @@ namespace USPSimGame.Migrations
 
             migrationBuilder.InsertData(
                 table: "PlannableLayerDefinitions",
-                columns: new[] { "Id", "Category", "DefaultColor", "DefaultExpenseDurationMonths", "DefaultLineWidthPx", "Description", "GeometryType", "Icon", "InvestmentPointsPerUnit", "IsEnabledByDefault", "Key", "MonthlyExpensePointsPerUnit", "Name", "SimulatorTags", "TranslatorTags" },
+                columns: new[] { "Id", "BaseConstructionTimeMonths", "BaseMonthlyExpensePoints", "Category", "ConstructionTimeModifierPerUnit", "DefaultColor", "DefaultExpenseDurationMonths", "DefaultLineWidthPx", "Description", "GeometryType", "Icon", "InvestmentPointsPerUnit", "IsEnabledByDefault", "Key", "MonthlyExpensePointsPerUnit", "Name", "SimulatorTags", "TranslatorTags" },
                 values: new object[,]
                 {
-                    { 1, "Infrastructure", "#f59e0b", 120, 2.5, "Zoned land polygon area designated for ground-mounted solar PV development.", "Polygon", "bi-sun-fill", 30.0, true, "solar-farm", 1.0, "Solar Farm Area", null, null },
-                    { 2, "Infrastructure", "#06b6d4", 120, 2.5, "Zoned land polygon area designated for onshore wind turbine installations.", "Polygon", "bi-wind", 30.0, true, "wind-farm", 1.0, "Wind Farm Zone", null, null },
-                    { 3, "Infrastructure", "#10b981", 120, 2.0, "Public or commercial electric vehicle charging station hub point location.", "Point", "bi-ev-station-fill", 30.0, true, "ev-charger-hub", 1.0, "EV Charging Station Hub", null, null },
-                    { 4, "Infrastructure", "#3b82f6", 120, 3.5, "High, medium, or low voltage power transmission or distribution line.", "Line", "bi-lightning-charge-fill", 30.0, true, "power-cable", 1.0, "Electricity Connection Cable", null, null },
-                    { 5, "Infrastructure", "#ef4444", 120, 2.0, "Electrical grid transformer station or substations for voltage step-down/step-up.", "Point", "bi-box-seam", 30.0, true, "transformer-substation", 1.0, "Transformer Substation", null, null }
+                    { 1, 6, 2.0, "Infrastructure", 0.0001, "#f59e0b", 120, 2.5, "Zoned land polygon area designated for ground-mounted solar PV development.", "Polygon", "bi-sun-fill", 30.0, true, "solar-farm", 1.0, "Solar Farm Area", null, null },
+                    { 2, 12, 5.0, "Infrastructure", 0.00020000000000000001, "#06b6d4", 120, 2.5, "Zoned land polygon area designated for onshore wind turbine installations.", "Polygon", "bi-wind", 30.0, true, "wind-farm", 1.0, "Wind Farm Zone", null, null },
+                    { 3, 1, 1.0, "Infrastructure", 0.5, "#10b981", 120, 2.0, "Public or commercial electric vehicle charging station hub point location.", "Point", "bi-ev-station-fill", 30.0, true, "ev-charger-hub", 1.0, "EV Charging Station Hub", null, null },
+                    { 4, 2, 0.5, "Infrastructure", 0.0050000000000000001, "#3b82f6", 120, 3.5, "High, medium, or low voltage power transmission or distribution line.", "Line", "bi-lightning-charge-fill", 30.0, true, "power-cable", 1.0, "Electricity Connection Cable", null, null },
+                    { 5, 4, 3.0, "Infrastructure", 1.0, "#ef4444", 120, 2.0, "Electrical grid transformer station or substations for voltage step-down/step-up.", "Point", "bi-box-seam", 30.0, true, "transformer-substation", 1.0, "Transformer Substation", null, null }
                 });
 
             migrationBuilder.InsertData(
@@ -372,6 +455,21 @@ namespace USPSimGame.Migrations
                 column: "TeamId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_SimulationKpiOutputs_GameSessionId",
+                table: "SimulationKpiOutputs",
+                column: "GameSessionId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_SimulationKpiOutputs_TeamId",
+                table: "SimulationKpiOutputs",
+                column: "TeamId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_SimulationMapOutputs_GameSessionId",
+                table: "SimulationMapOutputs",
+                column: "GameSessionId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Teams_GameSessionId",
                 table: "Teams",
                 column: "GameSessionId");
@@ -391,6 +489,15 @@ namespace USPSimGame.Migrations
 
             migrationBuilder.DropTable(
                 name: "PlayerSessions");
+
+            migrationBuilder.DropTable(
+                name: "SimulationKpiOutputs");
+
+            migrationBuilder.DropTable(
+                name: "SimulationMapOutputs");
+
+            migrationBuilder.DropTable(
+                name: "SimulationModuleDefinitions");
 
             migrationBuilder.DropTable(
                 name: "Users");

@@ -4,8 +4,6 @@ namespace USPSimGame.Services;
 
 public interface ITeamService
 {
-    event Func<int, Task>? OnTeamAreaChanged;
-
     Task<List<Team>> GetTeamsByGameSessionAsync(int gameSessionId);
     Task<Team?> GetTeamByIdAsync(int id);
     Task<Team> CreateTeamAsync(Team team, string plainPassword);
