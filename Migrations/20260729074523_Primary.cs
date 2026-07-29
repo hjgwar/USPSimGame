@@ -70,7 +70,10 @@ namespace USPSimGame.Migrations
                     DefaultLineWidthPx = table.Column<double>(type: "double precision", nullable: true),
                     TranslatorTags = table.Column<string>(type: "text", nullable: true),
                     SimulatorTags = table.Column<string>(type: "text", nullable: true),
-                    IsEnabledByDefault = table.Column<bool>(type: "boolean", nullable: false)
+                    IsEnabledByDefault = table.Column<bool>(type: "boolean", nullable: false),
+                    InvestmentPointsPerUnit = table.Column<double>(type: "double precision", nullable: false),
+                    MonthlyExpensePointsPerUnit = table.Column<double>(type: "double precision", nullable: false),
+                    DefaultExpenseDurationMonths = table.Column<int>(type: "integer", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -121,7 +124,9 @@ namespace USPSimGame.Migrations
                     Color = table.Column<string>(type: "text", nullable: false),
                     AreaDefinition = table.Column<string>(type: "text", nullable: true),
                     LockedBySessionId = table.Column<string>(type: "text", nullable: true),
-                    LockedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+                    LockedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    InvestmentPointsBalance = table.Column<double>(type: "double precision", nullable: false),
+                    AnnualBudgetAllowance = table.Column<double>(type: "double precision", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -204,6 +209,9 @@ namespace USPSimGame.Migrations
                     Description = table.Column<string>(type: "text", nullable: true),
                     StartMonth = table.Column<int>(type: "integer", nullable: false),
                     State = table.Column<string>(type: "text", nullable: false),
+                    TotalCalculatedInvestmentPoints = table.Column<double>(type: "double precision", nullable: false),
+                    TotalCalculatedMonthlyExpensePoints = table.Column<double>(type: "double precision", nullable: false),
+                    ExpenseDurationMonths = table.Column<int>(type: "integer", nullable: false),
                     LockedBySessionId = table.Column<string>(type: "text", nullable: true),
                     LockedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
@@ -255,6 +263,34 @@ namespace USPSimGame.Migrations
                         onDelete: ReferentialAction.Cascade);
                 });
 
+            migrationBuilder.CreateTable(
+                name: "PlanTeamJudgments",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    PlanId = table.Column<int>(type: "integer", nullable: false),
+                    TeamId = table.Column<int>(type: "integer", nullable: false),
+                    Judgment = table.Column<string>(type: "text", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_PlanTeamJudgments", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_PlanTeamJudgments_Plans_PlanId",
+                        column: x => x.PlanId,
+                        principalTable: "Plans",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_PlanTeamJudgments_Teams_TeamId",
+                        column: x => x.TeamId,
+                        principalTable: "Teams",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
             migrationBuilder.InsertData(
                 table: "MapLayerDefinitions",
                 columns: new[] { "Id", "Category", "DefaultStyleConfigJson", "Description", "IsEnabledByDefault", "Key", "LayerType", "Name", "SimulatorTags", "TranslatorTags" },
@@ -270,14 +306,14 @@ namespace USPSimGame.Migrations
 
             migrationBuilder.InsertData(
                 table: "PlannableLayerDefinitions",
-                columns: new[] { "Id", "Category", "DefaultColor", "DefaultLineWidthPx", "Description", "GeometryType", "Icon", "IsEnabledByDefault", "Key", "Name", "SimulatorTags", "TranslatorTags" },
+                columns: new[] { "Id", "Category", "DefaultColor", "DefaultExpenseDurationMonths", "DefaultLineWidthPx", "Description", "GeometryType", "Icon", "InvestmentPointsPerUnit", "IsEnabledByDefault", "Key", "MonthlyExpensePointsPerUnit", "Name", "SimulatorTags", "TranslatorTags" },
                 values: new object[,]
                 {
-                    { 1, "Infrastructure", "#f59e0b", 2.5, "Zoned land polygon area designated for ground-mounted solar PV development.", "Polygon", "bi-sun-fill", true, "solar-farm", "Solar Farm Area", null, null },
-                    { 2, "Infrastructure", "#06b6d4", 2.5, "Zoned land polygon area designated for onshore wind turbine installations.", "Polygon", "bi-wind", true, "wind-farm", "Wind Farm Zone", null, null },
-                    { 3, "Infrastructure", "#10b981", 2.0, "Public or commercial electric vehicle charging station hub point location.", "Point", "bi-ev-station-fill", true, "ev-charger-hub", "EV Charging Station Hub", null, null },
-                    { 4, "Infrastructure", "#3b82f6", 3.5, "High, medium, or low voltage power transmission or distribution line.", "Line", "bi-lightning-charge-fill", true, "power-cable", "Electricity Connection Cable", null, null },
-                    { 5, "Infrastructure", "#ef4444", 2.0, "Electrical grid transformer station or substations for voltage step-down/step-up.", "Point", "bi-box-seam", true, "transformer-substation", "Transformer Substation", null, null }
+                    { 1, "Infrastructure", "#f59e0b", 120, 2.5, "Zoned land polygon area designated for ground-mounted solar PV development.", "Polygon", "bi-sun-fill", 30.0, true, "solar-farm", 1.0, "Solar Farm Area", null, null },
+                    { 2, "Infrastructure", "#06b6d4", 120, 2.5, "Zoned land polygon area designated for onshore wind turbine installations.", "Polygon", "bi-wind", 30.0, true, "wind-farm", 1.0, "Wind Farm Zone", null, null },
+                    { 3, "Infrastructure", "#10b981", 120, 2.0, "Public or commercial electric vehicle charging station hub point location.", "Point", "bi-ev-station-fill", 30.0, true, "ev-charger-hub", 1.0, "EV Charging Station Hub", null, null },
+                    { 4, "Infrastructure", "#3b82f6", 120, 3.5, "High, medium, or low voltage power transmission or distribution line.", "Line", "bi-lightning-charge-fill", 30.0, true, "power-cable", 1.0, "Electricity Connection Cable", null, null },
+                    { 5, "Infrastructure", "#ef4444", 120, 2.0, "Electrical grid transformer station or substations for voltage step-down/step-up.", "Point", "bi-box-seam", 30.0, true, "transformer-substation", 1.0, "Transformer Substation", null, null }
                 });
 
             migrationBuilder.InsertData(
@@ -326,6 +362,16 @@ namespace USPSimGame.Migrations
                 column: "TeamId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_PlanTeamJudgments_PlanId",
+                table: "PlanTeamJudgments",
+                column: "PlanId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PlanTeamJudgments_TeamId",
+                table: "PlanTeamJudgments",
+                column: "TeamId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Teams_GameSessionId",
                 table: "Teams",
                 column: "GameSessionId");
@@ -339,6 +385,9 @@ namespace USPSimGame.Migrations
 
             migrationBuilder.DropTable(
                 name: "PlanFeatures");
+
+            migrationBuilder.DropTable(
+                name: "PlanTeamJudgments");
 
             migrationBuilder.DropTable(
                 name: "PlayerSessions");

@@ -240,6 +240,9 @@ public class MapLayerService : IMapLayerService
             existing.TranslatorTags = def.TranslatorTags;
             existing.SimulatorTags = def.SimulatorTags;
             existing.IsEnabledByDefault = def.IsEnabledByDefault;
+            existing.InvestmentPointsPerUnit = def.InvestmentPointsPerUnit;
+            existing.MonthlyExpensePointsPerUnit = def.MonthlyExpensePointsPerUnit;
+            existing.DefaultExpenseDurationMonths = def.DefaultExpenseDurationMonths;
             await context.SaveChangesAsync();
         }
     }

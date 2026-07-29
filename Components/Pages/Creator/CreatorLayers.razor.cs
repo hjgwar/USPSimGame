@@ -101,7 +101,10 @@ public partial class CreatorLayers : ComponentBase
             Icon = "bi-layers-fill",
             DefaultColor = "#3b82f6",
             DefaultLineWidthPx = 2.5,
-            IsEnabledByDefault = false
+            IsEnabledByDefault = false,
+            InvestmentPointsPerUnit = 30,
+            MonthlyExpensePointsPerUnit = 1,
+            DefaultExpenseDurationMonths = 120
         };
         ShowPlannableModal = true;
     }
@@ -122,7 +125,10 @@ public partial class CreatorLayers : ComponentBase
             DefaultLineWidthPx = def.DefaultLineWidthPx,
             TranslatorTags = def.TranslatorTags,
             SimulatorTags = def.SimulatorTags,
-            IsEnabledByDefault = def.IsEnabledByDefault
+            IsEnabledByDefault = def.IsEnabledByDefault,
+            InvestmentPointsPerUnit = def.InvestmentPointsPerUnit,
+            MonthlyExpensePointsPerUnit = def.MonthlyExpensePointsPerUnit,
+            DefaultExpenseDurationMonths = def.DefaultExpenseDurationMonths
         };
         ShowPlannableModal = true;
     }

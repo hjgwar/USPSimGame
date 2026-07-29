@@ -126,30 +126,14 @@
             }
 
             <h6 class="fw-bold text-dark small mb-2">
-                <i class="bi bi-diagram-2 me-1 text-success"></i>Plan Features & Geometries (@Plan.Features.Count)
+                <i class="bi bi-diagram-2 me-1 text-success"></i>Included Developments (@Plan.Features.Count)
             </h6>
 
             <div class="d-flex flex-column gap-2">
                 @foreach (var feat in Plan.Features)
                 {
-                    var pDef = feat.GameSessionPlannableLayer?.PlannableLayerDefinition;
-
-                    <div class="p-2 rounded-3 bg-white border d-flex align-items-center justify-content-between">
-                        <div class="d-flex align-items-center gap-2">
-                            <div class="rounded-circle p-2 d-flex align-items-center justify-content-center text-white" style="background-color: @(pDef?.DefaultColor ?? "#10b981"); width: 32px; height: 32px;">
-                                <i class="bi @(pDef?.Icon ?? "bi-layers-fill") small mb-0"></i>
-                            </div>
-                            <div>
-                                <span class="badge bg-secondary-subtle text-secondary micro-text me-1">@(pDef?.Category)</span>
-                                <span class="badge bg-warning-subtle text-dark micro-text">@(pDef?.GeometryType)</span>
-                                <div class="fw-semibold text-dark small">@(pDef?.Name ?? "Plannable Layer")</div>
-                            </div>
-                        </div>
-
-                        <span class="badge bg-success-subtle text-success border border-success-subtle micro-text">
-                            <i class="bi bi-geo-alt-fill me-1"></i>Drawn Map Feature
-                        </span>
-                    </div>
+                    <PlanFeatureRow Definition="@feat.GameSessionPlannableLayer?.PlannableLayerDefinition"
+                                    GeoJsonGeometry="@feat.GeoJsonGeometry" />
                 }
             </div>
         </div>

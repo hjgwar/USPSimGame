@@ -42,6 +42,36 @@
                         </div>
                     }
 
+                    @if (CostEstimate.TotalInvestmentPoints > 0 || CostEstimate.TotalMonthlyExpensePoints > 0)
+                    {
+                        <div class="card border-0 bg-primary-subtle p-3 rounded-3 mb-3 shadow-sm">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <span class="fw-bold text-primary small"><i class="bi bi-pie-chart-fill me-1"></i>Cost-Sharing Breakdown</span>
+                                <span class="badge bg-primary text-white micro-text">
+                                    @(CostEstimate.ConfirmedJoinedTeamCount) Team(s) Joined
+                                </span>
+                            </div>
+
+                            <div class="row g-2 extra-small text-dark">
+                                <div class="col-6">
+                                    <div class="p-2 bg-white rounded border">
+                                        <span class="d-block text-muted micro-text">Confirmed Share (@CostEstimate.ConfirmedJoinedTeamCount team(s))</span>
+                                        <strong class="text-success d-block">⚡ @CostEstimate.ConfirmedPerTeamInvestmentShare pts</strong>
+                                        <small class="text-danger d-block">📉 -@CostEstimate.ConfirmedPerTeamMonthlyExpenseShare pts/mo</small>
+                                    </div>
+                                </div>
+
+                                <div class="col-6">
+                                    <div class="p-2 bg-white rounded border">
+                                        <span class="d-block text-muted micro-text">Potential Share (If all @CostEstimate.PotentialTotalTeamCount join)</span>
+                                        <strong class="text-success d-block">⚡ @CostEstimate.PotentialPerTeamInvestmentShare pts</strong>
+                                        <small class="text-danger d-block">📉 -@CostEstimate.PotentialPerTeamMonthlyExpenseShare pts/mo</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+
                     <h6 class="fw-bold text-secondary mb-2 extra-small text-uppercase tracking-wider">Required Team Judgments</h6>
 
                     @if (!RequiredTeams.Any())
