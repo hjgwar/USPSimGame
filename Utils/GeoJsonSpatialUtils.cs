@@ -225,4 +225,159 @@ public static class GeoJsonSpatialUtils
 
         return (Ccw(p1, p3, p4) != Ccw(p2, p3, p4)) && (Ccw(p1, p2, p3) != Ccw(p1, p2, p4));
     }
+
+    public static double CalculateFeatureQuantity(string? geoJson, Data.Entities.PlannableGeometryType geomType)
+    {
+        if (string.IsNullOrWhiteSpace(geoJson)) return 0;
+
+        try
+        {
+            using var doc = JsonDocument.Parse(geoJson);
+            var root = doc.RootElement;
+
+            if (geomType == Data.Entities.PlannableGeometryType.Point)
+            {
+                return CountPointsInGeoJson(root);
+            }
+            else if (geomType == Data.Entities.PlannableGeometryType.Line)
+            {
+                double totalMeters = CalculateTotalLineLengthMeters(root);
+                return Math.Max(1.0, Math.Round(totalMeters / 50.0, 1));
+            }
+            else if (geomType == Data.Entities.PlannableGeometryType.Polygon)
+            {
+                double areaSqMeters = CalculateTotalPolygonAreaSquareMeters(root);
+                return Math.Max(1.0, Math.Round(areaSqMeters, 1));
+            }
+        }
+        catch { }
+
+        return 1.0;
+    }
+
+    private static double CountPointsInGeoJson(JsonElement el)
+    {
+        double count = 0;
+        if (el.ValueKind == JsonValueKind.Object)
+        {
+            if (el.TryGetProperty("type", out var typeProp))
+            {
+                var type = typeProp.GetString();
+                if (type == "FeatureCollection" && el.TryGetProperty("features", out var feats))
+                {
+                    foreach (var f in feats.EnumerateArray()) count += CountPointsInGeoJson(f);
+                }
+                else if (type == "Feature" && el.TryGetProperty("geometry", out var geom))
+                {
+                    count += CountPointsInGeoJson(geom);
+                }
+                else if (type == "Point")
+                {
+                    count += 1;
+                }
+                else if (type == "MultiPoint" && el.TryGetProperty("coordinates", out var coords))
+                {
+                    count += coords.GetArrayLength();
+                }
+            }
+        }
+        return count;
+    }
+
+    private static double CalculateTotalLineLengthMeters(JsonElement el)
+    {
+        double len = 0;
+        if (el.ValueKind == JsonValueKind.Object)
+        {
+            if (el.TryGetProperty("type", out var typeProp))
+            {
+                var type = typeProp.GetString();
+                if (type == "FeatureCollection" && el.TryGetProperty("features", out var feats))
+                {
+                    foreach (var f in feats.EnumerateArray()) len += CalculateTotalLineLengthMeters(f);
+                }
+                else if (type == "Feature" && el.TryGetProperty("geometry", out var geom))
+                {
+                    len += CalculateTotalLineLengthMeters(geom);
+                }
+                else if (type == "LineString" && el.TryGetProperty("coordinates", out var coords))
+                {
+                    var pts = ParsePointList(coords);
+                    len += GetLineLength(pts);
+                }
+                else if (type == "MultiLineString" && el.TryGetProperty("coordinates", out var mcoords))
+                {
+                    foreach (var lEl in mcoords.EnumerateArray())
+                    {
+                        var pts = ParsePointList(lEl);
+                        len += GetLineLength(pts);
+                    }
+                }
+            }
+        }
+        return len;
+    }
+
+    private static double GetLineLength(List<Point2D> pts)
+    {
+        double d = 0;
+        for (int i = 0; i < pts.Count - 1; i++)
+        {
+            double dx = pts[i + 1].X - pts[i].X;
+            double dy = pts[i + 1].Y - pts[i].Y;
+            d += Math.Sqrt(dx * dx + dy * dy);
+        }
+        return d;
+    }
+
+    private static double CalculateTotalPolygonAreaSquareMeters(JsonElement el)
+    {
+        double area = 0;
+        if (el.ValueKind == JsonValueKind.Object)
+        {
+            if (el.TryGetProperty("type", out var typeProp))
+            {
+                var type = typeProp.GetString();
+                if (type == "FeatureCollection" && el.TryGetProperty("features", out var feats))
+                {
+                    foreach (var f in feats.EnumerateArray()) area += CalculateTotalPolygonAreaSquareMeters(f);
+                }
+                else if (type == "Feature" && el.TryGetProperty("geometry", out var geom))
+                {
+                    area += CalculateTotalPolygonAreaSquareMeters(geom);
+                }
+                else if (type == "Polygon" && el.TryGetProperty("coordinates", out var coords))
+                {
+                    foreach (var rEl in coords.EnumerateArray())
+                    {
+                        var pts = ParsePointList(rEl);
+                        area += GetRingArea(pts);
+                    }
+                }
+                else if (type == "MultiPolygon" && el.TryGetProperty("coordinates", out var mcoords))
+                {
+                    foreach (var pEl in mcoords.EnumerateArray())
+                    {
+                        foreach (var rEl in pEl.EnumerateArray())
+                        {
+                            var pts = ParsePointList(rEl);
+                            area += GetRingArea(pts);
+                        }
+                    }
+                }
+            }
+        }
+        return Math.Abs(area);
+    }
+
+    private static double GetRingArea(List<Point2D> pts)
+    {
+        if (pts.Count < 3) return 0;
+        double area = 0;
+        for (int i = 0, j = pts.Count - 1; i < pts.Count; j = i++)
+        {
+            area += (pts[j].X + pts[i].X) * (pts[j].Y - pts[i].Y);
+        }
+        return area / 2.0;
+    }
 }

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Components;
+using USPSimGame.Components.Creator;
 using USPSimGame.Data.Entities;
 
 namespace USPSimGame.Components.Pages.Creator;
@@ -71,13 +72,13 @@ public partial class CreatorLayers : ComponentBase
         EditingBaselineLayer = null;
     }
 
-    protected async Task SaveBaselineTagsAsync()
+    protected async Task SaveBaselineTagsAsync(EditBaselineTagsModal.TagSavePayload payload)
     {
         if (EditingBaselineLayer != null)
         {
             try
             {
-                await MapLayerService.UpdateLayerDefinitionTagsAsync(EditingBaselineLayer.Id, EditTranslatorTags, EditSimulatorTags);
+                await MapLayerService.UpdateLayerDefinitionTagsAsync(EditingBaselineLayer.Id, payload.TranslatorTags, payload.SimulatorTags);
                 await LoadDataAsync();
             }
             catch (Exception ex)
@@ -101,7 +102,10 @@ public partial class CreatorLayers : ComponentBase
             Icon = "bi-layers-fill",
             DefaultColor = "#3b82f6",
             DefaultLineWidthPx = 2.5,
-            IsEnabledByDefault = false
+            IsEnabledByDefault = false,
+            InvestmentPointsPerUnit = 30,
+            MonthlyExpensePointsPerUnit = 1,
+            DefaultExpenseDurationMonths = 120
         };
         ShowPlannableModal = true;
     }
@@ -122,7 +126,10 @@ public partial class CreatorLayers : ComponentBase
             DefaultLineWidthPx = def.DefaultLineWidthPx,
             TranslatorTags = def.TranslatorTags,
             SimulatorTags = def.SimulatorTags,
-            IsEnabledByDefault = def.IsEnabledByDefault
+            IsEnabledByDefault = def.IsEnabledByDefault,
+            InvestmentPointsPerUnit = def.InvestmentPointsPerUnit,
+            MonthlyExpensePointsPerUnit = def.MonthlyExpensePointsPerUnit,
+            DefaultExpenseDurationMonths = def.DefaultExpenseDurationMonths
         };
         ShowPlannableModal = true;
     }
@@ -132,17 +139,17 @@ public partial class CreatorLayers : ComponentBase
         ShowPlannableModal = false;
     }
 
-    protected async Task SavePlannableLayerAsync()
+    protected async Task SavePlannableLayerAsync(PlannableLayerDefinition layer)
     {
         try
         {
             if (IsEditingPlannable)
             {
-                await MapLayerService.UpdatePlannableLayerDefinitionAsync(EditingPlannableLayer);
+                await MapLayerService.UpdatePlannableLayerDefinitionAsync(layer);
             }
             else
             {
-                await MapLayerService.CreatePlannableLayerDefinitionAsync(EditingPlannableLayer);
+                await MapLayerService.CreatePlannableLayerDefinitionAsync(layer);
             }
             await LoadDataAsync();
         }

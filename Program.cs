@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 using USPSimGame.Components;
 using USPSimGame.Data;
 using USPSimGame.Services;
+using USPSimGame.Services.Costing;
 using USPSimGame.Services.Layers;
 using USPSimGame.Services.Plans;
 using USPSimGame.Services.Presets;
@@ -36,6 +37,8 @@ builder.Services.AddScoped<ITeamService, TeamService>();
 builder.Services.AddScoped<IPlayerSessionService, PlayerSessionService>();
 builder.Services.AddScoped<IPlanService, PlanService>();
 builder.Services.AddScoped<IPlanApprovalEvaluationService, PlanApprovalEvaluationService>();
+builder.Services.AddScoped<ICostCalculationService, CostCalculationService>();
+builder.Services.AddScoped<ITeamBudgetService, TeamBudgetService>();
 builder.Services.AddScoped<CreatorAuthState>();
 builder.Services.AddScoped<PlayerSessionState>();
 

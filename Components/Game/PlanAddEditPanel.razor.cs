@@ -26,6 +26,9 @@ public partial class PlanAddEditPanel : ComponentBase
     public IMapLayerService MapLayerService { get; set; } = default!;
 
     [Inject]
+    public USPSimGame.Services.Costing.ICostCalculationService CostCalculationService { get; set; } = default!;
+
+    [Inject]
     public IJSRuntime JSRuntime { get; set; } = default!;
 
     [Parameter, EditorRequired]
@@ -179,11 +182,44 @@ public partial class PlanAddEditPanel : ComponentBase
         }
     }
 
+    protected bool _isCatalogModalOpen = false;
+    protected HashSet<int> _includedLayerIdsSet => DraftFeatures.Select(f => f.GameSessionPlannableLayerId).ToHashSet();
+    protected USPSimGame.Services.Costing.PlanCostEstimate CurrentPlanCost { get; set; }
+
+    protected void OpenCatalogModal()
+    {
+        _isCatalogModalOpen = true;
+    }
+
+    protected async Task OnCatalogLayerSelectedAsync(int layerId)
+    {
+        SelectedPlannableLayerId = layerId;
+        await OnPlannableLayerChangedAsync();
+    }
+
+    protected double GetFeatureInvestmentPoints(DraftFeatureItem item)
+    {
+        if (item.Layer?.PlannableLayerDefinition == null || string.IsNullOrWhiteSpace(item.GeoJsonGeometry)) return 0;
+        var est = CostCalculationService.CalculateFeatureCost(item.Layer.PlannableLayerDefinition, item.GeoJsonGeometry);
+        return est.TotalInvestmentPoints;
+    }
+
+    protected async Task RecalculatePlanCostAsync()
+    {
+        await SyncCurrentLayerGeoJsonAsync();
+        var featurePairs = DraftFeatures
+            .Where(f => f.Layer?.PlannableLayerDefinition != null && !string.IsNullOrWhiteSpace(f.GeoJsonGeometry))
+            .Select(f => (f.Layer.PlannableLayerDefinition, f.GeoJsonGeometry));
+
+        CurrentPlanCost = CostCalculationService.CalculateDraftPlanCost(featurePairs);
+    }
+
     protected async Task OnPlannableLayerChangedAsync()
     {
         await SyncCurrentLayerGeoJsonAsync();
         EnsureSelectedLayerInDraftFeatures();
         await ActivateSelectedLayerDrawingAsync();
+        await RecalculatePlanCostAsync();
     }
 
     protected async Task SelectDraftFeatureAsync(int gameSessionPlannableLayerId)
@@ -230,40 +266,40 @@ public partial class PlanAddEditPanel : ComponentBase
 
     private async Task SyncCurrentLayerGeoJsonAsync()
     {
-        if (_previousSelectedPlannableLayerId > 0)
+        try
         {
-            try
+            foreach (var item in DraftFeatures.ToList())
             {
-                string? geoJson = await JSRuntime.InvokeAsync<string?>("uspsim2d5.getDrawnGeoJsonForLayer", _previousSelectedPlannableLayerId.ToString());
-                var existing = DraftFeatures.FirstOrDefault(f => f.GameSessionPlannableLayerId == _previousSelectedPlannableLayerId);
-
+                string? geoJson = await JSRuntime.InvokeAsync<string?>("uspsim2d5.getDrawnGeoJsonForLayer", item.GameSessionPlannableLayerId.ToString());
                 if (!string.IsNullOrWhiteSpace(geoJson))
                 {
-                    if (existing == null)
+                    item.GeoJsonGeometry = geoJson;
+                }
+            }
+
+            if (_previousSelectedPlannableLayerId > 0 && !DraftFeatures.Any(f => f.GameSessionPlannableLayerId == _previousSelectedPlannableLayerId))
+            {
+                string? prevGeoJson = await JSRuntime.InvokeAsync<string?>("uspsim2d5.getDrawnGeoJsonForLayer", _previousSelectedPlannableLayerId.ToString());
+                if (!string.IsNullOrWhiteSpace(prevGeoJson))
+                {
+                    var layer = SessionPlannableLayers.FirstOrDefault(l => l.Id == _previousSelectedPlannableLayerId);
+                    if (layer != null)
                     {
-                        var layer = SessionPlannableLayers.FirstOrDefault(l => l.Id == _previousSelectedPlannableLayerId);
-                        if (layer != null)
+                        DraftFeatures.Add(new DraftFeatureItem
                         {
-                            DraftFeatures.Add(new DraftFeatureItem
-                            {
-                                GameSessionPlannableLayerId = _previousSelectedPlannableLayerId,
-                                Layer = layer,
-                                GeoJsonGeometry = geoJson
-                            });
-                        }
-                    }
-                    else
-                    {
-                        existing.GeoJsonGeometry = geoJson;
+                            GameSessionPlannableLayerId = _previousSelectedPlannableLayerId,
+                            Layer = layer,
+                            GeoJsonGeometry = prevGeoJson
+                        });
                     }
                 }
+            }
 
-                await ReevaluateRealtimeSpatialConditionsAsync();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[PlanAddEditPanel] Error syncing GeoJSON for layer {_previousSelectedPlannableLayerId}: {ex.Message}");
-            }
+            await ReevaluateRealtimeSpatialConditionsAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[PlanAddEditPanel] Error syncing GeoJSON: {ex.Message}");
         }
     }
 

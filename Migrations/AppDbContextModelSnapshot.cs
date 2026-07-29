@@ -246,6 +246,9 @@ namespace USPSimGame.Migrations
                     b.Property<string>("Description")
                         .HasColumnType("text");
 
+                    b.Property<int>("ExpenseDurationMonths")
+                        .HasColumnType("integer");
+
                     b.Property<int>("GameSessionId")
                         .HasColumnType("integer");
 
@@ -268,6 +271,12 @@ namespace USPSimGame.Migrations
 
                     b.Property<int>("TeamId")
                         .HasColumnType("integer");
+
+                    b.Property<double>("TotalCalculatedInvestmentPoints")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("TotalCalculatedMonthlyExpensePoints")
+                        .HasColumnType("double precision");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -358,6 +367,9 @@ namespace USPSimGame.Migrations
                     b.Property<string>("DefaultColor")
                         .HasColumnType("text");
 
+                    b.Property<int>("DefaultExpenseDurationMonths")
+                        .HasColumnType("integer");
+
                     b.Property<double?>("DefaultLineWidthPx")
                         .HasColumnType("double precision");
 
@@ -371,12 +383,18 @@ namespace USPSimGame.Migrations
                     b.Property<string>("Icon")
                         .HasColumnType("text");
 
+                    b.Property<double>("InvestmentPointsPerUnit")
+                        .HasColumnType("double precision");
+
                     b.Property<bool>("IsEnabledByDefault")
                         .HasColumnType("boolean");
 
                     b.Property<string>("Key")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<double>("MonthlyExpensePointsPerUnit")
+                        .HasColumnType("double precision");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -398,12 +416,15 @@ namespace USPSimGame.Migrations
                             Id = 1,
                             Category = "Infrastructure",
                             DefaultColor = "#f59e0b",
+                            DefaultExpenseDurationMonths = 120,
                             DefaultLineWidthPx = 2.5,
                             Description = "Zoned land polygon area designated for ground-mounted solar PV development.",
                             GeometryType = "Polygon",
                             Icon = "bi-sun-fill",
+                            InvestmentPointsPerUnit = 30.0,
                             IsEnabledByDefault = true,
                             Key = "solar-farm",
+                            MonthlyExpensePointsPerUnit = 1.0,
                             Name = "Solar Farm Area"
                         },
                         new
@@ -411,12 +432,15 @@ namespace USPSimGame.Migrations
                             Id = 2,
                             Category = "Infrastructure",
                             DefaultColor = "#06b6d4",
+                            DefaultExpenseDurationMonths = 120,
                             DefaultLineWidthPx = 2.5,
                             Description = "Zoned land polygon area designated for onshore wind turbine installations.",
                             GeometryType = "Polygon",
                             Icon = "bi-wind",
+                            InvestmentPointsPerUnit = 30.0,
                             IsEnabledByDefault = true,
                             Key = "wind-farm",
+                            MonthlyExpensePointsPerUnit = 1.0,
                             Name = "Wind Farm Zone"
                         },
                         new
@@ -424,12 +448,15 @@ namespace USPSimGame.Migrations
                             Id = 3,
                             Category = "Infrastructure",
                             DefaultColor = "#10b981",
+                            DefaultExpenseDurationMonths = 120,
                             DefaultLineWidthPx = 2.0,
                             Description = "Public or commercial electric vehicle charging station hub point location.",
                             GeometryType = "Point",
                             Icon = "bi-ev-station-fill",
+                            InvestmentPointsPerUnit = 30.0,
                             IsEnabledByDefault = true,
                             Key = "ev-charger-hub",
+                            MonthlyExpensePointsPerUnit = 1.0,
                             Name = "EV Charging Station Hub"
                         },
                         new
@@ -437,12 +464,15 @@ namespace USPSimGame.Migrations
                             Id = 4,
                             Category = "Infrastructure",
                             DefaultColor = "#3b82f6",
+                            DefaultExpenseDurationMonths = 120,
                             DefaultLineWidthPx = 3.5,
                             Description = "High, medium, or low voltage power transmission or distribution line.",
                             GeometryType = "Line",
                             Icon = "bi-lightning-charge-fill",
+                            InvestmentPointsPerUnit = 30.0,
                             IsEnabledByDefault = true,
                             Key = "power-cable",
+                            MonthlyExpensePointsPerUnit = 1.0,
                             Name = "Electricity Connection Cable"
                         },
                         new
@@ -450,12 +480,15 @@ namespace USPSimGame.Migrations
                             Id = 5,
                             Category = "Infrastructure",
                             DefaultColor = "#ef4444",
+                            DefaultExpenseDurationMonths = 120,
                             DefaultLineWidthPx = 2.0,
                             Description = "Electrical grid transformer station or substations for voltage step-down/step-up.",
                             GeometryType = "Point",
                             Icon = "bi-box-seam",
+                            InvestmentPointsPerUnit = 30.0,
                             IsEnabledByDefault = true,
                             Key = "transformer-substation",
+                            MonthlyExpensePointsPerUnit = 1.0,
                             Name = "Transformer Substation"
                         });
                 });
@@ -497,6 +530,9 @@ namespace USPSimGame.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<double>("AnnualBudgetAllowance")
+                        .HasColumnType("double precision");
+
                     b.Property<string>("AreaDefinition")
                         .HasColumnType("text");
 
@@ -506,6 +542,9 @@ namespace USPSimGame.Migrations
 
                     b.Property<int>("GameSessionId")
                         .HasColumnType("integer");
+
+                    b.Property<double>("InvestmentPointsBalance")
+                        .HasColumnType("double precision");
 
                     b.Property<DateTime?>("LockedAt")
                         .HasColumnType("timestamp with time zone");

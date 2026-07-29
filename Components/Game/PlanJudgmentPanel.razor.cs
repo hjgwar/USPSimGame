@@ -14,10 +14,13 @@ public partial class PlanJudgmentPanel : ComponentBase, IDisposable
     [Parameter] public List<Team> SessionTeams { get; set; } = new();
     [Parameter] public EventCallback OnJudgmentsUpdated { get; set; }
 
+    [Inject] public USPSimGame.Services.Costing.ICostCalculationService CostCalculationService { get; set; } = default!;
+
     private bool IsLoading { get; set; } = true;
     private PlanApprovalEvaluation? Evaluation { get; set; }
     private List<Team> RequiredTeams { get; set; } = new();
     private List<PlanTeamJudgment> Judgments { get; set; } = new();
+    private USPSimGame.Services.Costing.PlanCostEstimate CostEstimate { get; set; }
 
     private int CurrentPlayerTeamId => PlayerState.CurrentTeam?.Id ?? 0;
 
@@ -52,6 +55,7 @@ public partial class PlanJudgmentPanel : ComponentBase, IDisposable
         {
             Evaluation = await EvaluationService.EvaluatePlanAsync(TargetPlan.Id);
             Judgments = await PlanService.GetPlanJudgmentsAsync(TargetPlan.Id);
+            CostEstimate = await CostCalculationService.CalculatePlanCostAsync(TargetPlan.Id);
 
             RequiredTeams = SessionTeams
                 .Where(t => Evaluation.RequiredTeamIds.Contains(t.Id))

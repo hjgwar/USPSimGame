@@ -25,6 +25,14 @@
     </div>
 </div>
 
+<!-- Top-Right Team Budget Widget -->
+@if (PlayerSessionState.CurrentTeam != null)
+{
+    <!-- div class="position-fixed top-0 end-0 m-3 z-3 pointer-events-none" -->
+        <TeamBudgetWidget TeamId="@PlayerSessionState.CurrentTeam.Id" />
+    <!-- /div -->
+}
+
 <!-- Top-Right Overlay: Current Month & Year Display & Game State -->
 <div class="game-date-overlay righthandside position-absolute top-0 end-0 m-3 z-3 bg-white p-3 rounded shadow-sm border">
     <div class="d-flex align-items-center gap-3">

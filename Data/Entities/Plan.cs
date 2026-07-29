@@ -24,6 +24,10 @@ public class Plan
 
     public PlanState State { get; set; } = PlanState.Draft;
 
+    public double TotalCalculatedInvestmentPoints { get; set; } = 0;
+    public double TotalCalculatedMonthlyExpensePoints { get; set; } = 0;
+    public int ExpenseDurationMonths { get; set; } = 120;
+
     public string? LockedBySessionId { get; set; }
 
     [NotMapped]

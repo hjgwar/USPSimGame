@@ -14,6 +14,9 @@ public class Team
     public string? LockedBySessionId { get; set; }
     public DateTime? LockedAt { get; set; }
 
+    public double InvestmentPointsBalance { get; set; } = 100;
+    public double AnnualBudgetAllowance { get; set; } = 100;
+
     [NotMapped]
     public string? LockedByUserName { get; set; }
 }
