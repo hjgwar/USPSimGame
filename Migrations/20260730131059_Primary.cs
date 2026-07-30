@@ -74,10 +74,10 @@ namespace USPSimGame.Migrations
                     TranslatorTags = table.Column<string>(type: "text", nullable: true),
                     SimulatorTags = table.Column<string>(type: "text", nullable: true),
                     IsEnabledByDefault = table.Column<bool>(type: "boolean", nullable: false),
+                    BaseInvestmentPoints = table.Column<double>(type: "double precision", nullable: false),
                     InvestmentPointsPerUnit = table.Column<double>(type: "double precision", nullable: false),
                     BaseMonthlyExpensePoints = table.Column<double>(type: "double precision", nullable: false),
                     MonthlyExpensePointsPerUnit = table.Column<double>(type: "double precision", nullable: false),
-                    DefaultExpenseDurationMonths = table.Column<int>(type: "integer", nullable: false),
                     BaseConstructionTimeMonths = table.Column<int>(type: "integer", nullable: false),
                     ConstructionTimeModifierPerUnit = table.Column<double>(type: "double precision", nullable: false)
                 },
@@ -327,7 +327,8 @@ namespace USPSimGame.Migrations
                     GameSessionPlannableLayerId = table.Column<int>(type: "integer", nullable: false),
                     TargetFeatureId = table.Column<string>(type: "text", nullable: true),
                     GeoJsonGeometry = table.Column<string>(type: "text", nullable: true),
-                    PropertiesJson = table.Column<string>(type: "text", nullable: true)
+                    PropertiesJson = table.Column<string>(type: "text", nullable: true),
+                    IsDemolition = table.Column<bool>(type: "boolean", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -389,14 +390,14 @@ namespace USPSimGame.Migrations
 
             migrationBuilder.InsertData(
                 table: "PlannableLayerDefinitions",
-                columns: new[] { "Id", "BaseConstructionTimeMonths", "BaseMonthlyExpensePoints", "Category", "ConstructionTimeModifierPerUnit", "DefaultColor", "DefaultExpenseDurationMonths", "DefaultLineWidthPx", "Description", "GeometryType", "Icon", "InvestmentPointsPerUnit", "IsEnabledByDefault", "Key", "MonthlyExpensePointsPerUnit", "Name", "SimulatorTags", "TranslatorTags" },
+                columns: new[] { "Id", "BaseConstructionTimeMonths", "BaseInvestmentPoints", "BaseMonthlyExpensePoints", "Category", "ConstructionTimeModifierPerUnit", "DefaultColor", "DefaultLineWidthPx", "Description", "GeometryType", "Icon", "InvestmentPointsPerUnit", "IsEnabledByDefault", "Key", "MonthlyExpensePointsPerUnit", "Name", "SimulatorTags", "TranslatorTags" },
                 values: new object[,]
                 {
-                    { 1, 6, 2.0, "Infrastructure", 0.0001, "#f59e0b", 120, 2.5, "Zoned land polygon area designated for ground-mounted solar PV development.", "Polygon", "bi-sun-fill", 30.0, true, "solar-farm", 1.0, "Solar Farm Area", null, null },
-                    { 2, 12, 5.0, "Infrastructure", 0.00020000000000000001, "#06b6d4", 120, 2.5, "Zoned land polygon area designated for onshore wind turbine installations.", "Polygon", "bi-wind", 30.0, true, "wind-farm", 1.0, "Wind Farm Zone", null, null },
-                    { 3, 1, 1.0, "Infrastructure", 0.5, "#10b981", 120, 2.0, "Public or commercial electric vehicle charging station hub point location.", "Point", "bi-ev-station-fill", 30.0, true, "ev-charger-hub", 1.0, "EV Charging Station Hub", null, null },
-                    { 4, 2, 0.5, "Infrastructure", 0.0050000000000000001, "#3b82f6", 120, 3.5, "High, medium, or low voltage power transmission or distribution line.", "Line", "bi-lightning-charge-fill", 30.0, true, "power-cable", 1.0, "Electricity Connection Cable", null, null },
-                    { 5, 4, 3.0, "Infrastructure", 1.0, "#ef4444", 120, 2.0, "Electrical grid transformer station or substations for voltage step-down/step-up.", "Point", "bi-box-seam", 30.0, true, "transformer-substation", 1.0, "Transformer Substation", null, null }
+                    { 1, 6, 50.0, 2.0, "Infrastructure", 0.0001, "#f59e0b", 2.5, "Zoned land polygon area designated for ground-mounted solar PV development.", "Polygon", "bi-sun-fill", 30.0, true, "solar-farm", 1.0, "Solar Farm Area", null, null },
+                    { 2, 12, 100.0, 5.0, "Infrastructure", 0.00020000000000000001, "#06b6d4", 2.5, "Zoned land polygon area designated for onshore wind turbine installations.", "Polygon", "bi-wind", 50.0, true, "wind-farm", 2.0, "Wind Farm Zone", null, null },
+                    { 3, 1, 10.0, 1.0, "Infrastructure", 0.5, "#10b981", 2.0, "Public or commercial electric vehicle charging station hub point location.", "Point", "bi-ev-station-fill", 30.0, true, "ev-charger-hub", 0.5, "EV Charging Station Hub", null, null },
+                    { 4, 2, 15.0, 0.5, "Infrastructure", 0.0050000000000000001, "#3b82f6", 3.5, "High, medium, or low voltage power transmission or distribution line.", "Line", "bi-lightning-charge-fill", 20.0, true, "power-cable", 0.5, "Electricity Connection Cable", null, null },
+                    { 5, 4, 40.0, 3.0, "Infrastructure", 1.0, "#ef4444", 2.0, "Electrical grid transformer station or substations for voltage step-down/step-up.", "Point", "bi-box-seam", 40.0, true, "transformer-substation", 1.0, "Transformer Substation", null, null }
                 });
 
             migrationBuilder.InsertData(

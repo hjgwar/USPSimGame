@@ -313,6 +313,9 @@ namespace USPSimGame.Migrations
                     b.Property<string>("GeoJsonGeometry")
                         .HasColumnType("text");
 
+                    b.Property<bool>("IsDemolition")
+                        .HasColumnType("boolean");
+
                     b.Property<int>("PlanId")
                         .HasColumnType("integer");
 
@@ -372,6 +375,9 @@ namespace USPSimGame.Migrations
                     b.Property<int>("BaseConstructionTimeMonths")
                         .HasColumnType("integer");
 
+                    b.Property<double>("BaseInvestmentPoints")
+                        .HasColumnType("double precision");
+
                     b.Property<double>("BaseMonthlyExpensePoints")
                         .HasColumnType("double precision");
 
@@ -384,9 +390,6 @@ namespace USPSimGame.Migrations
 
                     b.Property<string>("DefaultColor")
                         .HasColumnType("text");
-
-                    b.Property<int>("DefaultExpenseDurationMonths")
-                        .HasColumnType("integer");
 
                     b.Property<double?>("DefaultLineWidthPx")
                         .HasColumnType("double precision");
@@ -433,11 +436,11 @@ namespace USPSimGame.Migrations
                         {
                             Id = 1,
                             BaseConstructionTimeMonths = 6,
+                            BaseInvestmentPoints = 50.0,
                             BaseMonthlyExpensePoints = 2.0,
                             Category = "Infrastructure",
                             ConstructionTimeModifierPerUnit = 0.0001,
                             DefaultColor = "#f59e0b",
-                            DefaultExpenseDurationMonths = 120,
                             DefaultLineWidthPx = 2.5,
                             Description = "Zoned land polygon area designated for ground-mounted solar PV development.",
                             GeometryType = "Polygon",
@@ -452,30 +455,30 @@ namespace USPSimGame.Migrations
                         {
                             Id = 2,
                             BaseConstructionTimeMonths = 12,
+                            BaseInvestmentPoints = 100.0,
                             BaseMonthlyExpensePoints = 5.0,
                             Category = "Infrastructure",
                             ConstructionTimeModifierPerUnit = 0.00020000000000000001,
                             DefaultColor = "#06b6d4",
-                            DefaultExpenseDurationMonths = 120,
                             DefaultLineWidthPx = 2.5,
                             Description = "Zoned land polygon area designated for onshore wind turbine installations.",
                             GeometryType = "Polygon",
                             Icon = "bi-wind",
-                            InvestmentPointsPerUnit = 30.0,
+                            InvestmentPointsPerUnit = 50.0,
                             IsEnabledByDefault = true,
                             Key = "wind-farm",
-                            MonthlyExpensePointsPerUnit = 1.0,
+                            MonthlyExpensePointsPerUnit = 2.0,
                             Name = "Wind Farm Zone"
                         },
                         new
                         {
                             Id = 3,
                             BaseConstructionTimeMonths = 1,
+                            BaseInvestmentPoints = 10.0,
                             BaseMonthlyExpensePoints = 1.0,
                             Category = "Infrastructure",
                             ConstructionTimeModifierPerUnit = 0.5,
                             DefaultColor = "#10b981",
-                            DefaultExpenseDurationMonths = 120,
                             DefaultLineWidthPx = 2.0,
                             Description = "Public or commercial electric vehicle charging station hub point location.",
                             GeometryType = "Point",
@@ -483,42 +486,42 @@ namespace USPSimGame.Migrations
                             InvestmentPointsPerUnit = 30.0,
                             IsEnabledByDefault = true,
                             Key = "ev-charger-hub",
-                            MonthlyExpensePointsPerUnit = 1.0,
+                            MonthlyExpensePointsPerUnit = 0.5,
                             Name = "EV Charging Station Hub"
                         },
                         new
                         {
                             Id = 4,
                             BaseConstructionTimeMonths = 2,
+                            BaseInvestmentPoints = 15.0,
                             BaseMonthlyExpensePoints = 0.5,
                             Category = "Infrastructure",
                             ConstructionTimeModifierPerUnit = 0.0050000000000000001,
                             DefaultColor = "#3b82f6",
-                            DefaultExpenseDurationMonths = 120,
                             DefaultLineWidthPx = 3.5,
                             Description = "High, medium, or low voltage power transmission or distribution line.",
                             GeometryType = "Line",
                             Icon = "bi-lightning-charge-fill",
-                            InvestmentPointsPerUnit = 30.0,
+                            InvestmentPointsPerUnit = 20.0,
                             IsEnabledByDefault = true,
                             Key = "power-cable",
-                            MonthlyExpensePointsPerUnit = 1.0,
+                            MonthlyExpensePointsPerUnit = 0.5,
                             Name = "Electricity Connection Cable"
                         },
                         new
                         {
                             Id = 5,
                             BaseConstructionTimeMonths = 4,
+                            BaseInvestmentPoints = 40.0,
                             BaseMonthlyExpensePoints = 3.0,
                             Category = "Infrastructure",
                             ConstructionTimeModifierPerUnit = 1.0,
                             DefaultColor = "#ef4444",
-                            DefaultExpenseDurationMonths = 120,
                             DefaultLineWidthPx = 2.0,
                             Description = "Electrical grid transformer station or substations for voltage step-down/step-up.",
                             GeometryType = "Point",
                             Icon = "bi-box-seam",
-                            InvestmentPointsPerUnit = 30.0,
+                            InvestmentPointsPerUnit = 40.0,
                             IsEnabledByDefault = true,
                             Key = "transformer-substation",
                             MonthlyExpensePointsPerUnit = 1.0,

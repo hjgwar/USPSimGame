@@ -122,7 +122,9 @@ public class PlanService : IPlanService
                     PlanId = plan.Id,
                     GameSessionPlannableLayerId = featPayload.GameSessionPlannableLayerId,
                     GeoJsonGeometry = featPayload.GeoJsonGeometry,
-                    PropertiesJson = featPayload.PropertiesJson
+                    PropertiesJson = featPayload.PropertiesJson,
+                    IsDemolition = featPayload.IsDemolition,
+                    TargetFeatureId = featPayload.TargetFeatureId
                 };
 
                 context.PlanFeatures.Add(feature);
@@ -173,7 +175,9 @@ public class PlanService : IPlanService
                     PlanId = plan.Id,
                     GameSessionPlannableLayerId = featPayload.GameSessionPlannableLayerId,
                     GeoJsonGeometry = featPayload.GeoJsonGeometry,
-                    PropertiesJson = featPayload.PropertiesJson
+                    PropertiesJson = featPayload.PropertiesJson,
+                    IsDemolition = featPayload.IsDemolition,
+                    TargetFeatureId = featPayload.TargetFeatureId
                 });
             }
         }
@@ -328,5 +332,144 @@ public class PlanService : IPlanService
             PlanState.Archived => 5,
             _ => 99
         };
+    }
+
+    public async Task<string> GetImplementedFeaturesGeoJsonAsync(int gameSessionId, int? targetSimMonth = null)
+    {
+        await using var context = await _dbContextFactory.CreateDbContextAsync();
+
+        if (!targetSimMonth.HasValue)
+        {
+            var session = await context.GameSessions.FindAsync(gameSessionId);
+            targetSimMonth = session?.CurrentMonth ?? 0;
+        }
+
+        var implementedPlans = await context.Plans
+            .Include(p => p.Team)
+            .Include(p => p.Features)
+                .ThenInclude(f => f.GameSessionPlannableLayer)
+                    .ThenInclude(l => l!.PlannableLayerDefinition)
+            .Where(p => p.GameSessionId == gameSessionId && p.State == PlanState.Implemented && p.StartMonth <= targetSimMonth.Value)
+            .OrderBy(p => p.StartMonth)
+            .ThenBy(p => p.Id)
+            .ToListAsync();
+
+        if (!implementedPlans.Any())
+        {
+            return "{\"type\":\"FeatureCollection\",\"features\":[]}";
+        }
+
+        var demolishedFeatureIds = new HashSet<string>();
+        foreach (var plan in implementedPlans)
+        {
+            foreach (var feature in plan.Features.Where(f => f.IsDemolition))
+            {
+                if (!string.IsNullOrEmpty(feature.TargetFeatureId))
+                {
+                    var ids = feature.TargetFeatureId.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                    foreach (var id in ids)
+                    {
+                        demolishedFeatureIds.Add(id);
+                    }
+                }
+            }
+        }
+
+        var featuresList = new List<object>();
+        foreach (var plan in implementedPlans)
+        {
+            foreach (var feature in plan.Features)
+            {
+                if (feature.IsDemolition) continue;
+                if (demolishedFeatureIds.Contains(feature.Id.ToString())) continue;
+                if (!string.IsNullOrEmpty(feature.TargetFeatureId) && demolishedFeatureIds.Contains(feature.TargetFeatureId)) continue;
+                if (string.IsNullOrWhiteSpace(feature.GeoJsonGeometry)) continue;
+
+                try
+                {
+                    using var doc = System.Text.Json.JsonDocument.Parse(feature.GeoJsonGeometry);
+                    var root = doc.RootElement;
+
+                    if (root.ValueKind == System.Text.Json.JsonValueKind.Object && root.TryGetProperty("type", out var typeProp) && typeProp.GetString() == "FeatureCollection")
+                    {
+                        if (root.TryGetProperty("features", out var featsArray) && featsArray.ValueKind == System.Text.Json.JsonValueKind.Array)
+                        {
+                            foreach (var featElem in featsArray.EnumerateArray())
+                            {
+                                var featObj = System.Text.Json.Nodes.JsonNode.Parse(featElem.GetRawText())?.AsObject();
+                                if (featObj != null)
+                                {
+                                    var props = featObj["properties"]?.AsObject() ?? new System.Text.Json.Nodes.JsonObject();
+                                    props["featureId"] = feature.Id;
+                                    props["targetFeatureId"] = feature.Id.ToString();
+                                    props["gameSessionPlannableLayerId"] = feature.GameSessionPlannableLayerId;
+                                    props["layerKey"] = feature.GameSessionPlannableLayer?.PlannableLayerDefinition?.Key ?? "default";
+                                    props["layerName"] = feature.GameSessionPlannableLayer?.PlannableLayerDefinition?.Name ?? "Layer";
+                                    props["color"] = feature.GameSessionPlannableLayer?.PlannableLayerDefinition?.DefaultColor ?? "#3b82f6";
+                                    props["icon"] = feature.GameSessionPlannableLayer?.PlannableLayerDefinition?.Icon ?? "bi-layers-fill";
+                                    props["teamName"] = plan.Team?.Name ?? "";
+                                    props["teamColor"] = plan.Team?.Color ?? "#3b82f6";
+                                    featObj["properties"] = props;
+                                    featuresList.Add(featObj);
+                                }
+                            }
+                        }
+                    }
+                    else if (root.ValueKind == System.Text.Json.JsonValueKind.Object && root.TryGetProperty("type", out var featTypeProp) && featTypeProp.GetString() == "Feature")
+                    {
+                        var featObj = System.Text.Json.Nodes.JsonNode.Parse(feature.GeoJsonGeometry)?.AsObject();
+                        if (featObj != null)
+                        {
+                            var props = featObj["properties"]?.AsObject() ?? new System.Text.Json.Nodes.JsonObject();
+                            props["featureId"] = feature.Id;
+                            props["targetFeatureId"] = feature.Id.ToString();
+                            props["gameSessionPlannableLayerId"] = feature.GameSessionPlannableLayerId;
+                            props["layerKey"] = feature.GameSessionPlannableLayer?.PlannableLayerDefinition?.Key ?? "default";
+                            props["layerName"] = feature.GameSessionPlannableLayer?.PlannableLayerDefinition?.Name ?? "Layer";
+                            props["color"] = feature.GameSessionPlannableLayer?.PlannableLayerDefinition?.DefaultColor ?? "#3b82f6";
+                            props["icon"] = feature.GameSessionPlannableLayer?.PlannableLayerDefinition?.Icon ?? "bi-layers-fill";
+                            props["teamName"] = plan.Team?.Name ?? "";
+                            props["teamColor"] = plan.Team?.Color ?? "#3b82f6";
+                            featObj["properties"] = props;
+                            featuresList.Add(featObj);
+                        }
+                    }
+                    else
+                    {
+                        var geomObj = System.Text.Json.Nodes.JsonNode.Parse(feature.GeoJsonGeometry);
+                        var featObj = new System.Text.Json.Nodes.JsonObject
+                        {
+                            ["type"] = "Feature",
+                            ["geometry"] = geomObj,
+                            ["properties"] = new System.Text.Json.Nodes.JsonObject
+                            {
+                                ["featureId"] = feature.Id,
+                                ["targetFeatureId"] = feature.Id.ToString(),
+                                ["gameSessionPlannableLayerId"] = feature.GameSessionPlannableLayerId,
+                                ["layerKey"] = feature.GameSessionPlannableLayer?.PlannableLayerDefinition?.Key ?? "default",
+                                ["layerName"] = feature.GameSessionPlannableLayer?.PlannableLayerDefinition?.Name ?? "Layer",
+                                ["color"] = feature.GameSessionPlannableLayer?.PlannableLayerDefinition?.DefaultColor ?? "#3b82f6",
+                                ["icon"] = feature.GameSessionPlannableLayer?.PlannableLayerDefinition?.Icon ?? "bi-layers-fill",
+                                ["teamName"] = plan.Team?.Name ?? "",
+                                ["teamColor"] = plan.Team?.Color ?? "#3b82f6"
+                            }
+                        };
+                        featuresList.Add(featObj);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning("PlanService: Failed to parse GeoJSON geometry for feature #{FeatureId}: {Message}", feature.Id, ex.Message);
+                }
+            }
+        }
+
+        var collection = new System.Text.Json.Nodes.JsonObject
+        {
+            ["type"] = "FeatureCollection",
+            ["features"] = System.Text.Json.Nodes.JsonNode.Parse(System.Text.Json.JsonSerializer.Serialize(featuresList))
+        };
+
+        return collection.ToJsonString();
     }
 }

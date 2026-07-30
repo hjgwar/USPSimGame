@@ -149,6 +149,12 @@ app.MapGet("/api/teams/session/{sessionId:int}", async (int sessionId, ITeamServ
     return Results.Ok(payload);
 });
 
+app.MapGet("/api/layers/{sessionId:int}/implemented-features", async (int sessionId, int? targetMonth, IPlanService planService) =>
+{
+    var geoJson = await planService.GetImplementedFeaturesGeoJsonAsync(sessionId, targetMonth);
+    return Results.Content(geoJson, "application/json");
+});
+
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();

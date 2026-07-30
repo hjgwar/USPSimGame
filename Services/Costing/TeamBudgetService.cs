@@ -82,7 +82,6 @@ public class TeamBudgetService : ITeamBudgetService
         var cost = await _costCalculationService.CalculatePlanCostAsync(planId);
         plan.TotalCalculatedInvestmentPoints = cost.TotalInvestmentPoints;
         plan.TotalCalculatedMonthlyExpensePoints = cost.TotalMonthlyExpensePoints;
-        plan.ExpenseDurationMonths = cost.ExpenseDurationMonths;
 
         var participatingTeamIds = new HashSet<int> { plan.TeamId };
         foreach (var j in plan.Judgments.Where(j => j.Judgment == PlanJudgmentType.Join))

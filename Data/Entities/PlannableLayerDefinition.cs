@@ -14,10 +14,10 @@ public class PlannableLayerDefinition
     public string? TranslatorTags { get; set; }
     public string? SimulatorTags { get; set; }
     public bool IsEnabledByDefault { get; set; } = false;
+    public double BaseInvestmentPoints { get; set; } = 0.0;
     public double InvestmentPointsPerUnit { get; set; } = 30;
     public double BaseMonthlyExpensePoints { get; set; } = 0.0;
     public double MonthlyExpensePointsPerUnit { get; set; } = 1;
-    public int DefaultExpenseDurationMonths { get; set; } = 120;
     public int BaseConstructionTimeMonths { get; set; } = 0;
     public double ConstructionTimeModifierPerUnit { get; set; } = 0.0;
 }

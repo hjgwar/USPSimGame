@@ -67,16 +67,32 @@
                                                 @(string.IsNullOrWhiteSpace(def.Description) ? "Plannable spatial development option for map integration." : def.Description)
                                             </p>
 
-                                            <!-- Costing Breakdown Pill -->
-                                            <div class="p-2 rounded-2 bg-light border mb-3">
-                                                <div class="d-flex align-items-center justify-content-between small text-dark mb-1">
-                                                    <span><i class="bi bi-bank text-success me-1"></i>Investment:</span>
-                                                    <strong class="text-success">@def.InvestmentPointsPerUnit pts @GetUnitSuffix(def.GeometryType)</strong>
-                                                </div>
-                                                <div class="d-flex align-items-center justify-content-between small text-dark">
-                                                    <span><i class="bi bi-arrow-repeat text-info me-1"></i>Expense:</span>
-                                                    <strong class="text-danger">@GetExpenseDisplay(def)</strong>
-                                                </div>
+                                            <!-- Costing Breakdown Table -->
+                                            <div class="p-2 rounded-2 bg-light border mb-3 overflow-hidden">
+                                                <table class="table table-sm table-borderless micro-text mb-0 align-middle">
+                                                    <tbody>
+                                                        <tr class="border-bottom">
+                                                            <td class="fw-bold text-dark pe-2 align-top" style="width: 25%;">Investment</td>
+                                                            <td class="text-muted pe-1 py-0" style="width: 20%;">Base</td>
+                                                            <td class="fw-bold text-success py-0">@def.BaseInvestmentPoints pts</td>
+                                                        </tr>
+                                                        <tr class="border-bottom">
+                                                            <td></td>
+                                                            <td class="text-muted pe-1 py-0">Addition</td>
+                                                            <td class="fw-bold text-success py-0">@def.InvestmentPointsPerUnit @GetInvestmentUnitDisplay(def.GeometryType)</td>
+                                                        </tr>
+                                                        <tr class="border-bottom">
+                                                            <td class="fw-bold text-dark pe-2 align-top">Expense</td>
+                                                            <td class="text-muted pe-1 py-0">Base</td>
+                                                            <td class="fw-bold text-danger py-0">@def.BaseMonthlyExpensePoints pts / month</td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td></td>
+                                                            <td class="text-muted pe-1 py-0">Addition</td>
+                                                            <td class="fw-bold text-danger py-0">@def.MonthlyExpensePointsPerUnit @GetExpenseUnitDisplay(def.GeometryType)</td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
                                             </div>
 
                                             <!-- SimulatorTags Badges -->

@@ -112,22 +112,31 @@
                     @if (DraftFeatures.Any())
                     {
                         <div>
-                            <label class="form-label fw-bold text-dark small mb-1">
-                                <i class="bi bi-layers text-success me-1"></i>Included Developments (@DraftFeatures.Count)
-                            </label>
-                            <div class="d-flex flex-column gap-2">
-                                @foreach (var featureItem in DraftFeatures)
-                                {
-                                    bool isCurrentActive = (featureItem.GameSessionPlannableLayerId == SelectedPlannableLayerId);
+                            @{
+                                var validDraftFeatures = DraftFeatures
+                                    .Where(f => !string.IsNullOrWhiteSpace(f.GeoJsonGeometry) || (f.GameSessionPlannableLayerId == SelectedPlannableLayerId && !f.IsDemolition))
+                                    .ToList();
+                            }
+                            @if (validDraftFeatures.Any())
+                            {
+                                <label class="form-label fw-bold text-dark small mb-1">
+                                    <i class="bi bi-layers text-success me-1"></i>Included Developments (@validDraftFeatures.Count(f => !string.IsNullOrWhiteSpace(f.GeoJsonGeometry)))
+                                </label>
+                                <div class="d-flex flex-column gap-2">
+                                    @foreach (var featureItem in validDraftFeatures)
+                                    {
+                                        bool isCurrentActive = (featureItem.GameSessionPlannableLayerId == SelectedPlannableLayerId && !featureItem.IsDemolition);
 
-                                    <PlanFeatureRow Definition="@featureItem.Layer?.PlannableLayerDefinition"
-                                                    GeoJsonGeometry="@featureItem.GeoJsonGeometry"
-                                                    IsActive="@isCurrentActive"
-                                                    ShowRemoveButton="true"
-                                                    OnSelect="() => SelectDraftFeatureAsync(featureItem.GameSessionPlannableLayerId)"
-                                                    OnRemove="() => RemoveDraftFeatureAsync(featureItem.GameSessionPlannableLayerId)" />
-                                }
-                            </div>
+                                        <PlanFeatureRow Definition="@featureItem.Layer?.PlannableLayerDefinition"
+                                                        GeoJsonGeometry="@featureItem.GeoJsonGeometry"
+                                                        IsDemolition="@featureItem.IsDemolition"
+                                                        IsActive="@isCurrentActive"
+                                                        ShowRemoveButton="true"
+                                                        OnSelect="() => SelectDraftFeatureAsync(featureItem.GameSessionPlannableLayerId)"
+                                                        OnRemove="() => RemoveDraftFeatureAsync(featureItem.GameSessionPlannableLayerId, featureItem.IsDemolition)" />
+                                    }
+                                </div>
+                            }
                         </div>
                     }
 
@@ -144,7 +153,7 @@
                             </div>
                             <div class="d-flex justify-content-between small mb-1">
                                 <span>Expense:</span>
-                                <strong class="text-danger">📉 @CurrentPlanCost.TotalMonthlyExpensePoints pts/mo (@(CurrentPlanCost.ExpenseDurationMonths / 12) yrs)</strong>
+                                <strong class="text-danger">📉 @CurrentPlanCost.TotalMonthlyExpensePoints pts/mo</strong>
                             </div>
                         </div>
                     }

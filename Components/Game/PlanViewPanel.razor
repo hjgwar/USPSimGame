@@ -133,7 +133,8 @@
                 @foreach (var feat in Plan.Features)
                 {
                     <PlanFeatureRow Definition="@feat.GameSessionPlannableLayer?.PlannableLayerDefinition"
-                                    GeoJsonGeometry="@feat.GeoJsonGeometry" />
+                                    GeoJsonGeometry="@feat.GeoJsonGeometry"
+                                    IsDemolition="@feat.IsDemolition" />
                 }
             </div>
         </div>

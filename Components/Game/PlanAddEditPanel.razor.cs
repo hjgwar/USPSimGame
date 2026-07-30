@@ -12,9 +12,11 @@ public class DraftFeatureItem
     public GameSessionPlannableLayer Layer { get; set; } = default!;
     public string? GeoJsonGeometry { get; set; }
     public string? PropertiesJson { get; set; }
+    public bool IsDemolition { get; set; } = false;
+    public string? TargetFeatureId { get; set; }
 }
 
-public partial class PlanAddEditPanel : ComponentBase
+public partial class PlanAddEditPanel : ComponentBase, IDisposable
 {
     [Inject]
     public IPlanService PlanService { get; set; } = default!;
@@ -163,8 +165,20 @@ public partial class PlanAddEditPanel : ComponentBase
         }
     }
 
+    private DotNetObjectReference<PlanAddEditPanel>? _dotNetRef;
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (firstRender)
+        {
+            _dotNetRef = DotNetObjectReference.Create(this);
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("uspsim2d5.registerPlanPanelDotNetRef", _dotNetRef);
+            }
+            catch { }
+        }
+
         if (_needsInitialDrawingActivation)
         {
             _needsInitialDrawingActivation = false;
@@ -177,7 +191,7 @@ public partial class PlanAddEditPanel : ComponentBase
                     {
                         var def = item.Layer.PlannableLayerDefinition;
                         await JSRuntime.InvokeVoidAsync("uspsim2d5.startDrawing", def.GeometryType.ToString(), def.DefaultColor ?? "#3b82f6", "rgba(59, 130, 246, 0.25)", item.GameSessionPlannableLayerId.ToString());
-                        await JSRuntime.InvokeVoidAsync("uspsim2d5.loadDraftFeatureGeometry", item.GameSessionPlannableLayerId.ToString(), item.GeoJsonGeometry);
+                        await JSRuntime.InvokeVoidAsync("uspsim2d5.loadDraftFeatureGeometry", item.GameSessionPlannableLayerId.ToString(), item.GeoJsonGeometry, item.IsDemolition);
                     }
                 }
 
@@ -187,6 +201,160 @@ public partial class PlanAddEditPanel : ComponentBase
                 }
             }
         }
+    }
+
+    [JSInvokable]
+    public async Task OnDraftGeometryUpdated(string layerIdStr, string geoJson)
+    {
+        if (int.TryParse(layerIdStr, out int layerId))
+        {
+            var existingAddition = DraftFeatures.FirstOrDefault(f => f.GameSessionPlannableLayerId == layerId && !f.IsDemolition);
+            if (existingAddition != null)
+            {
+                existingAddition.GeoJsonGeometry = string.IsNullOrWhiteSpace(geoJson) ? null : geoJson;
+            }
+            else if (!string.IsNullOrWhiteSpace(geoJson))
+            {
+                var layer = SessionPlannableLayers.FirstOrDefault(l => l.Id == layerId);
+                if (layer != null)
+                {
+                    DraftFeatures.Add(new DraftFeatureItem
+                    {
+                        GameSessionPlannableLayerId = layerId,
+                        Layer = layer,
+                        GeoJsonGeometry = geoJson,
+                        IsDemolition = false
+                    });
+                }
+            }
+
+            await RecalculatePlanCostAsync();
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    [JSInvokable]
+    public async Task OnDemolitionFeatureAddedFromMap(string layerIdStr, string geoJson, string targetFeatureId)
+    {
+        if (int.TryParse(layerIdStr, out int layerId))
+        {
+            var layer = SessionPlannableLayers.FirstOrDefault(l => l.Id == layerId);
+            if (layer != null)
+            {
+                var existingDemo = DraftFeatures.FirstOrDefault(f => f.GameSessionPlannableLayerId == layerId && f.IsDemolition);
+                if (existingDemo != null)
+                {
+                    existingDemo.GeoJsonGeometry = MergeGeoJsonFeatures(existingDemo.GeoJsonGeometry, geoJson);
+
+                    if (!string.IsNullOrEmpty(targetFeatureId))
+                    {
+                        if (string.IsNullOrEmpty(existingDemo.TargetFeatureId))
+                        {
+                            existingDemo.TargetFeatureId = targetFeatureId;
+                        }
+                        else if (!existingDemo.TargetFeatureId.Split(',').Contains(targetFeatureId))
+                        {
+                            existingDemo.TargetFeatureId += "," + targetFeatureId;
+                        }
+                    }
+                }
+                else
+                {
+                    var demoItem = new DraftFeatureItem
+                    {
+                        GameSessionPlannableLayerId = layerId,
+                        Layer = layer,
+                        GeoJsonGeometry = EnsureFeatureCollection(geoJson),
+                        IsDemolition = true,
+                        TargetFeatureId = targetFeatureId
+                    };
+                    DraftFeatures.Add(demoItem);
+                }
+
+                await RecalculatePlanCostAsync();
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+    }
+
+    private static string EnsureFeatureCollection(string geoJson)
+    {
+        if (string.IsNullOrWhiteSpace(geoJson)) return "{\"type\":\"FeatureCollection\",\"features\":[]}";
+
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(geoJson);
+            var root = doc.RootElement;
+            if (root.ValueKind == System.Text.Json.JsonValueKind.Object && root.TryGetProperty("type", out var typeProp) && typeProp.GetString() == "FeatureCollection")
+            {
+                return geoJson;
+            }
+
+            var featNode = System.Text.Json.Nodes.JsonNode.Parse(geoJson);
+            if (root.ValueKind == System.Text.Json.JsonValueKind.Object && root.TryGetProperty("type", out var tProp) && tProp.GetString() == "Feature")
+            {
+                var fc = new System.Text.Json.Nodes.JsonObject
+                {
+                    ["type"] = "FeatureCollection",
+                    ["features"] = new System.Text.Json.Nodes.JsonArray { featNode }
+                };
+                return fc.ToJsonString();
+            }
+
+            var feat = new System.Text.Json.Nodes.JsonObject
+            {
+                ["type"] = "Feature",
+                ["geometry"] = featNode,
+                ["properties"] = new System.Text.Json.Nodes.JsonObject()
+            };
+            var featureCollection = new System.Text.Json.Nodes.JsonObject
+            {
+                ["type"] = "FeatureCollection",
+                ["features"] = new System.Text.Json.Nodes.JsonArray { feat }
+            };
+            return featureCollection.ToJsonString();
+        }
+        catch
+        {
+            return geoJson;
+        }
+    }
+
+    private static string MergeGeoJsonFeatures(string? existingGeoJson, string newGeoJson)
+    {
+        var fcStr = EnsureFeatureCollection(existingGeoJson ?? "");
+        var newFcStr = EnsureFeatureCollection(newGeoJson);
+
+        try
+        {
+            var existingObj = System.Text.Json.Nodes.JsonNode.Parse(fcStr)?.AsObject();
+            var newObj = System.Text.Json.Nodes.JsonNode.Parse(newFcStr)?.AsObject();
+
+            if (existingObj != null && newObj != null)
+            {
+                var existingFeats = existingObj["features"]?.AsArray() ?? new System.Text.Json.Nodes.JsonArray();
+                var newFeats = newObj["features"]?.AsArray() ?? new System.Text.Json.Nodes.JsonArray();
+
+                foreach (var f in newFeats.ToList())
+                {
+                    if (f != null)
+                    {
+                        newFeats.Remove(f);
+                        existingFeats.Add(f);
+                    }
+                }
+                existingObj["features"] = existingFeats;
+                return existingObj.ToJsonString();
+            }
+        }
+        catch { }
+
+        return fcStr;
+    }
+
+    public void Dispose()
+    {
+        _dotNetRef?.Dispose();
     }
 
     private void EnsureSelectedLayerInDraftFeatures()
@@ -228,18 +396,18 @@ public partial class PlanAddEditPanel : ComponentBase
     protected double GetFeatureInvestmentPoints(DraftFeatureItem item)
     {
         if (item.Layer?.PlannableLayerDefinition == null || string.IsNullOrWhiteSpace(item.GeoJsonGeometry)) return 0;
-        var est = CostCalculationService.CalculateFeatureCost(item.Layer.PlannableLayerDefinition, item.GeoJsonGeometry);
+        var est = CostCalculationService.CalculateFeatureCost(item.Layer.PlannableLayerDefinition, item.GeoJsonGeometry, item.IsDemolition);
         return est.TotalInvestmentPoints;
     }
 
     protected async Task RecalculatePlanCostAsync()
     {
         await SyncCurrentLayerGeoJsonAsync();
-        var featurePairs = DraftFeatures
+        var featureTuples = DraftFeatures
             .Where(f => f.Layer?.PlannableLayerDefinition != null && !string.IsNullOrWhiteSpace(f.GeoJsonGeometry))
-            .Select(f => (f.Layer.PlannableLayerDefinition, f.GeoJsonGeometry));
+            .Select(f => (f.Layer.PlannableLayerDefinition, f.GeoJsonGeometry, f.IsDemolition));
 
-        CurrentPlanCost = CostCalculationService.CalculateDraftPlanCost(featurePairs);
+        CurrentPlanCost = CostCalculationService.CalculateDraftPlanCost(featureTuples);
     }
 
     protected async Task OnPlannableLayerChangedAsync()
@@ -261,7 +429,7 @@ public partial class PlanAddEditPanel : ComponentBase
         }
     }
 
-    protected async Task RemoveDraftFeatureAsync(int gameSessionPlannableLayerId)
+    protected async Task RemoveDraftFeatureAsync(int gameSessionPlannableLayerId, bool isDemolition = false)
     {
         try
         {
@@ -272,9 +440,9 @@ public partial class PlanAddEditPanel : ComponentBase
             Console.WriteLine($"[PlanAddEditPanel] Error removing draft layer in JS: {ex.Message}");
         }
 
-        DraftFeatures.RemoveAll(f => f.GameSessionPlannableLayerId == gameSessionPlannableLayerId);
+        DraftFeatures.RemoveAll(f => f.GameSessionPlannableLayerId == gameSessionPlannableLayerId && f.IsDemolition == isDemolition);
 
-        if (SelectedPlannableLayerId == gameSessionPlannableLayerId)
+        if (SelectedPlannableLayerId == gameSessionPlannableLayerId && !isDemolition)
         {
             var remaining = SessionPlannableLayers.FirstOrDefault(l => DraftFeatures.Any(df => df.GameSessionPlannableLayerId == l.Id))
                 ?? SessionPlannableLayers.FirstOrDefault();
@@ -289,6 +457,8 @@ public partial class PlanAddEditPanel : ComponentBase
                 SelectedPlannableLayerId = 0;
             }
         }
+
+        await RecalculatePlanCostAsync();
         StateHasChanged();
     }
 
@@ -424,7 +594,9 @@ public partial class PlanAddEditPanel : ComponentBase
                 {
                     GameSessionPlannableLayerId = f.GameSessionPlannableLayerId,
                     GeoJsonGeometry = f.GeoJsonGeometry,
-                    PropertiesJson = f.PropertiesJson
+                    PropertiesJson = f.PropertiesJson,
+                    IsDemolition = f.IsDemolition,
+                    TargetFeatureId = f.TargetFeatureId
                 })
                 .ToList();
 

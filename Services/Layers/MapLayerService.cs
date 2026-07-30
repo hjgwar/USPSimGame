@@ -239,10 +239,12 @@ public class MapLayerService : IMapLayerService
             existing.DefaultLineWidthPx = def.DefaultLineWidthPx;
             existing.TranslatorTags = def.TranslatorTags;
             existing.SimulatorTags = def.SimulatorTags;
-            existing.IsEnabledByDefault = def.IsEnabledByDefault;
+            existing.BaseInvestmentPoints = def.BaseInvestmentPoints;
             existing.InvestmentPointsPerUnit = def.InvestmentPointsPerUnit;
+            existing.BaseMonthlyExpensePoints = def.BaseMonthlyExpensePoints;
             existing.MonthlyExpensePointsPerUnit = def.MonthlyExpensePointsPerUnit;
-            existing.DefaultExpenseDurationMonths = def.DefaultExpenseDurationMonths;
+            existing.BaseConstructionTimeMonths = def.BaseConstructionTimeMonths;
+            existing.ConstructionTimeModifierPerUnit = def.ConstructionTimeModifierPerUnit;
             await context.SaveChangesAsync();
         }
     }

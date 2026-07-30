@@ -6,7 +6,6 @@ public struct PlanCostEstimate
 {
     public double TotalInvestmentPoints { get; set; }
     public double TotalMonthlyExpensePoints { get; set; }
-    public int ExpenseDurationMonths { get; set; }
     public double ConfirmedPerTeamInvestmentShare { get; set; }
     public double ConfirmedPerTeamMonthlyExpenseShare { get; set; }
     public double PotentialPerTeamInvestmentShare { get; set; }
@@ -17,7 +16,8 @@ public struct PlanCostEstimate
 
 public interface ICostCalculationService
 {
-    PlanCostEstimate CalculateFeatureCost(PlannableLayerDefinition definition, string? geoJson);
+    PlanCostEstimate CalculateFeatureCost(PlannableLayerDefinition definition, string? geoJson, bool isDemolition = false);
+    PlanCostEstimate CalculateDraftPlanCost(IEnumerable<(PlannableLayerDefinition def, string? geoJson, bool isDemolition)> features, int confirmedJoinedTeams = 1, int potentialTotalTeams = 1);
     PlanCostEstimate CalculateDraftPlanCost(IEnumerable<(PlannableLayerDefinition def, string? geoJson)> features, int confirmedJoinedTeams = 1, int potentialTotalTeams = 1);
     Task<PlanCostEstimate> CalculatePlanCostAsync(int planId);
 
