@@ -487,7 +487,17 @@ window._selectedImplementedFeature = null;
 
 window.uspsim2d5.registerPlanPanelDotNetRef = function (dotNetRef) {
     window._blazorPlanPanelDotNetRef = dotNetRef;
-    this.initImplementedFeatureSelection();
+    if (dotNetRef) {
+        this.initImplementedFeatureSelection();
+    }
+};
+
+window.uspsim2d5.unregisterPlanPanelDotNetRef = function () {
+    window._blazorPlanPanelDotNetRef = null;
+    if (window._selectedImplementedFeature) {
+        window._selectedImplementedFeature.setStyle(null);
+        window._selectedImplementedFeature = null;
+    }
 };
 
 window.uspsim2d5.notifyGeometryChanged = function (layerId) {
@@ -650,10 +660,14 @@ window.uspsim2d5.getDrawnGeoJsonForLayer = function (layerId) {
     const map = window.activeOlMap;
     if (!map || !window._draftVectorLayers || !window._draftVectorLayers[layerId]) return null;
     const source = window._draftVectorLayers[layerId].source;
-    const features = source.getFeatures();
-    if (!features || features.length === 0) return null;
+    const allFeatures = source.getFeatures();
+    if (!allFeatures || allFeatures.length === 0) return null;
+
+    const additionFeatures = allFeatures.filter(f => !f.get('isDemolition'));
+    if (!additionFeatures || additionFeatures.length === 0) return null;
+
     const geojsonFormat = new ol.format.GeoJSON();
-    return geojsonFormat.writeFeatures(features, {
+    return geojsonFormat.writeFeatures(additionFeatures, {
         dataProjection: 'EPSG:4326',
         featureProjection: map.getView().getProjection()
     });

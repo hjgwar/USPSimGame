@@ -140,7 +140,7 @@ window.uspsim2d5.enableMapFeatureInspection = function (dotNetRef) {
     }
 
     window._mapFeatureInspectClickListener = function (evt) {
-        if ((window._drawInteraction && window._drawInteraction.getActive()) || window._blazorPlanPanelDotNetRef) {
+        if (window._drawInteraction && window._drawInteraction.getActive()) {
             return;
         }
 

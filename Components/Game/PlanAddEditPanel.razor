@@ -19,7 +19,6 @@
                     <i class="bi bi-exclamation-circle me-1"></i>@ErrorMessage
                 </div>
             }
-
             @if (RealtimeEvaluation != null && !string.IsNullOrWhiteSpace(RealtimeEvaluation.ExplanatoryText))
             {
                 <div class="alert @(RealtimeEvaluation.RequiresMultiTeamApproval ? "alert-warning" : "alert-info") py-2 px-3 mb-3 extra-small border-0 shadow-sm d-flex align-items-start gap-2">
@@ -54,27 +53,21 @@
                         <textarea class="form-control form-control-sm" rows="2" @bind="Description" placeholder="Optional notes or plan description..."></textarea>
                     </div>
 
+                    @if (CalculatedConstructionMonths > 0)
+                    {
                     <!-- Dynamic Construction Time Banner -->
                     <div class="alert @(IsConstructionTimeValid ? "alert-info" : "alert-danger") border-0 py-2 px-3 mb-1 extra-small shadow-sm">
                         <div class="d-flex align-items-center gap-2">
                             <i class="bi @(IsConstructionTimeValid ? "bi-tools text-info" : "bi-exclamation-triangle-fill text-danger") fs-6"></i>
                             <div>
                                 <strong>Construction Duration: @CalculatedConstructionMonths month(s)</strong>
-                                @if (CalculatedConstructionMonths > 0)
-                                {
-                                    <div class="text-muted">
-                                        Construction starts: <strong>@USPSimGame.Utils.CommonGameUtils.FormatMonthYear(((SelectedYear - StartYear) * 12) + (SelectedMonth - 1) - CalculatedConstructionMonths, StartYear)</strong>
-                                    </div>
-                                }
+                                <div class="text-muted">
+                                    Construction starts: <strong>@USPSimGame.Utils.CommonGameUtils.FormatMonthYear(((SelectedYear - StartYear) * 12) + (SelectedMonth - 1) - CalculatedConstructionMonths, StartYear)</strong>
+                                </div>
                             </div>
                         </div>
-                        @if (!IsConstructionTimeValid && ConstructionTimeWarningMessage != null)
-                        {
-                            <div class="mt-1 text-danger fw-semibold">
-                                @ConstructionTimeWarningMessage
-                            </div>
-                        }
                     </div>
+                    }
 
                     <div>
                         <label class="form-label fw-bold text-dark small mb-1">Implementation Target Date</label>
@@ -100,78 +93,130 @@
                         </div>
                     </div>
 
-                    <div>
-                        <button type="button" class="btn btn-sm btn-outline-success w-100 rounded-pill py-2 fw-bold shadow-sm d-flex align-items-center justify-content-center gap-2 mb-2"
+                    <!-- Catalog Button -->
+                    <div class="mb-3">
+                        <button type="button" class="btn btn-sm btn-outline-success w-100 rounded-pill py-2 fw-bold shadow-sm d-flex align-items-center justify-content-center gap-2"
                                 @onclick="OpenCatalogModal">
                             <i class="bi bi-grid-3x3-gap-fill h6 mb-0"></i>
                             <span>Browse & Add Development Option</span>
                         </button>
                     </div>
 
-                    <!-- Included Developments in this Plan -->
-                    @if (DraftFeatures.Any())
-                    {
-                        <div>
-                            @{
-                                var validDraftFeatures = DraftFeatures
-                                    .Where(f => !string.IsNullOrWhiteSpace(f.GeoJsonGeometry) || (f.GameSessionPlannableLayerId == SelectedPlannableLayerId && !f.IsDemolition))
-                                    .ToList();
-                            }
-                            @if (validDraftFeatures.Any())
-                            {
-                                <label class="form-label fw-bold text-dark small mb-1">
-                                    <i class="bi bi-layers text-success me-1"></i>Included Developments (@validDraftFeatures.Count(f => !string.IsNullOrWhiteSpace(f.GeoJsonGeometry)))
-                                </label>
-                                <div class="d-flex flex-column gap-2">
-                                    @foreach (var featureItem in validDraftFeatures)
-                                    {
-                                        bool isCurrentActive = (featureItem.GameSessionPlannableLayerId == SelectedPlannableLayerId && !featureItem.IsDemolition);
+                    <!-- Section A: Included Layers -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-dark small mb-1">
+                            <i class="bi bi-folder-check text-primary me-1"></i>Included Options (@IncludedLayers.Count)
+                        </label>
+                        @if (!IncludedLayers.Any())
+                        {
+                            <div class="text-muted extra-small fst-italic p-2.5 rounded-3 border border-dashed bg-light text-center">
+                                Nothing included yet.
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="d-flex flex-column gap-2">
+                                @foreach (var layer in IncludedLayers)
+                                {
+                                    bool isSelected = (SelectedPlannableLayerId == layer.Id && SelectedDevelopmentFeature == null);
+                                    var def = layer.PlannableLayerDefinition;
 
-                                        <PlanFeatureRow Definition="@featureItem.Layer?.PlannableLayerDefinition"
-                                                        GeoJsonGeometry="@featureItem.GeoJsonGeometry"
-                                                        IsDemolition="@featureItem.IsDemolition"
-                                                        IsActive="@isCurrentActive"
-                                                        ShowRemoveButton="true"
-                                                        OnSelect="() => SelectDraftFeatureAsync(featureItem.GameSessionPlannableLayerId)"
-                                                        OnRemove="() => RemoveDraftFeatureAsync(featureItem.GameSessionPlannableLayerId, featureItem.IsDemolition)" />
-                                    }
-                                </div>
-                            }
+                                    <div class="p-2.5 rounded-3 border transition-all @(isSelected ? "border-success bg-success-subtle shadow-sm" : "bg-white hover-bg-light cursor-pointer")">
+                                        <div class="d-flex align-items-center justify-content-between" @onclick="() => SelectLayerForDrawingAsync(layer.Id)">
+                                            <div class="d-flex align-items-center gap-2">
+                                                <div class="rounded-circle p-1 d-flex align-items-center justify-content-center text-white shadow-sm" style="background-color: @(def?.DefaultColor ?? "#3b82f6"); width: 26px; height: 26px;">
+                                                    <i class="bi @(def?.Icon ?? "bi-layers-fill") micro-text"></i>
+                                                </div>
+                                                <div>
+                                                    <span class="fw-semibold text-dark small">@(def?.Name ?? "Layer")</span>
+                                                    <span class="badge bg-warning-subtle text-dark border border-warning-subtle micro-text ms-1">@(def?.GeometryType)</span>
+                                                </div>
+                                            </div>
+                                            <div class="d-flex align-items-center gap-2">
+                                                @if (isSelected)
+                                                {
+                                                    <span class="badge bg-success text-white micro-text">Active</span>
+                                                }
+                                                <button type="button" class="btn btn-sm btn-outline-danger p-0 px-2 action-btn-small"
+                                                        @onclick:stopPropagation="true"
+                                                        @onclick="() => RemoveLayerFromPlanAsync(layer.Id)"
+                                                        title="Remove this layer and all its developments from the plan">
+                                                    <i class="bi bi-x-lg"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <!-- Section B: Inline GeometryDrawControls for the Selected Active Layer -->
+                                        @if (isSelected && def != null)
+                                        {
+                                            <div class="mt-2 pt-2 border-top">
+                                                <GeometryDrawControls LayerName="@def.Name"
+                                                                      GeometryType="@def.GeometryType.ToString()"
+                                                                      Category="@def.Category.ToString()"
+                                                                      Color="@(def.DefaultColor ?? "#3b82f6")"
+                                                                      Icon="@(def.Icon ?? "bi-layers-fill")"
+                                                                      IsActive="true"
+                                                                      OnUndoPoint="UndoPointAsync"
+                                                                      OnRedoPoint="RedoPointAsync"
+                                                                      OnDeletePoint="DeletePointAsync" />
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+
+                    <!-- Section C: Included Developments (Ledger of Real Items) -->
+                    @{
+                        var activeFeatureItems = DraftFeatures.Where(f => !string.IsNullOrWhiteSpace(f.GeoJsonGeometry)).ToList();
+                    }
+                    @if (activeFeatureItems.Any())
+                    {
+                        <div class="mb-3">
+                            <label class="form-label fw-bold text-dark small mb-1">
+                                <i class="bi bi-diagram-2 text-success me-1"></i>Included Developments (@activeFeatureItems.Count)
+                            </label>
+                            <div class="d-flex flex-column gap-2">
+                                @foreach (var featureItem in activeFeatureItems)
+                                {
+                                    bool isSelectedFeature = (SelectedDevelopmentFeature == featureItem);
+
+                                    <PlanFeatureRow Definition="@featureItem.Layer?.PlannableLayerDefinition"
+                                                    GeoJsonGeometry="@featureItem.GeoJsonGeometry"
+                                                    IsDemolition="@featureItem.IsDemolition"
+                                                    IsActive="@isSelectedFeature"
+                                                    ShowRemoveButton="true"
+                                                    OnSelect="() => SelectDevelopmentFeatureForHighlightAsync(featureItem)"
+                                                    OnRemove="() => RemoveDevelopmentFeatureAsync(featureItem)" />
+                                }
+                            </div>
                         </div>
                     }
 
-                    <!-- Financial Summary Card -->
-                    @if (CurrentPlanCost.TotalInvestmentPoints > 0 || CurrentPlanCost.TotalMonthlyExpensePoints > 0)
+                    <!-- Section D: Financial Summary Card -->
+                    @if (CurrentPlanCost.TotalInvestmentPoints != 0 || CurrentPlanCost.TotalMonthlyExpensePoints != 0)
                     {
-                        <div class="card border-0 bg-success-subtle p-3 rounded-3 mt-3">
+                        <div class="card border-0 bg-success-subtle p-3 rounded-3 mb-3">
                             <div class="d-flex align-items-center justify-content-between mb-2">
                                 <span class="fw-bold text-success small"><i class="bi bi-cash-stack me-1"></i>Financial Cost Summary</span>
                             </div>
                             <div class="d-flex justify-content-between small mb-1">
                                 <span>Investment:</span>
-                                <strong class="text-success">⚡ @CurrentPlanCost.TotalInvestmentPoints pts</strong>
+                                <strong class="text-danger">⚡ -@CurrentPlanCost.TotalInvestmentPoints pts</strong>
                             </div>
                             <div class="d-flex justify-content-between small mb-1">
                                 <span>Expense:</span>
-                                <strong class="text-danger">📉 @CurrentPlanCost.TotalMonthlyExpensePoints pts/mo</strong>
+                                @if (CurrentPlanCost.TotalMonthlyExpensePoints < 0)
+                                {
+                                    <strong class="text-success">📈 +@Math.Abs(CurrentPlanCost.TotalMonthlyExpensePoints) pts/mo (savings)</strong>
+                                }
+                                else
+                                {
+                                    <strong class="text-danger">📉 -@CurrentPlanCost.TotalMonthlyExpensePoints pts/mo</strong>
+                                }
                             </div>
                         </div>
-                    }
-
-                    @{
-                        var currentLayer = SessionPlannableLayers.FirstOrDefault(l => l.Id == SelectedPlannableLayerId);
-                    }
-                    @if (currentLayer != null)
-                    {
-                        <GeometryDrawControls LayerName="@currentLayer.PlannableLayerDefinition.Name"
-                                                GeometryType="@currentLayer.PlannableLayerDefinition.GeometryType.ToString()"
-                                                Category="@currentLayer.PlannableLayerDefinition.Category.ToString()"
-                                                Color="@(currentLayer.PlannableLayerDefinition.DefaultColor ?? "#3b82f6")"
-                                                Icon="@(currentLayer.PlannableLayerDefinition.Icon ?? "bi-layers-fill")"
-                                                IsActive="true"
-                                                OnUndoPoint="UndoPointAsync"
-                                                OnRedoPoint="RedoPointAsync"
-                                                OnDeletePoint="DeletePointAsync" />
                     }
                 </div>
             }

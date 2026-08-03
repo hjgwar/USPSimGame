@@ -27,7 +27,7 @@ public class CostCalculationService : ICostCalculationService
 
         if (isDemolition)
         {
-            investment = Math.Round(definition.BaseInvestmentPoints, 1);
+            investment = Math.Round(definition.BaseInvestmentPoints + (quantity * definition.InvestmentPointsPerUnit), 1);
             monthlyExpense = -Math.Round(definition.BaseMonthlyExpensePoints + (quantity * definition.MonthlyExpensePointsPerUnit), 1);
         }
         else

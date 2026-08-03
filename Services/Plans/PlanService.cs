@@ -381,8 +381,6 @@ public class PlanService : IPlanService
             foreach (var feature in plan.Features)
             {
                 if (feature.IsDemolition) continue;
-                if (demolishedFeatureIds.Contains(feature.Id.ToString())) continue;
-                if (!string.IsNullOrEmpty(feature.TargetFeatureId) && demolishedFeatureIds.Contains(feature.TargetFeatureId)) continue;
                 if (string.IsNullOrWhiteSpace(feature.GeoJsonGeometry)) continue;
 
                 try
@@ -394,14 +392,23 @@ public class PlanService : IPlanService
                     {
                         if (root.TryGetProperty("features", out var featsArray) && featsArray.ValueKind == System.Text.Json.JsonValueKind.Array)
                         {
+                            int subIndex = 0;
                             foreach (var featElem in featsArray.EnumerateArray())
                             {
+                                string subTargetId = $"{feature.Id}_{subIndex}";
+                                subIndex++;
+
+                                if (demolishedFeatureIds.Contains(subTargetId) || demolishedFeatureIds.Contains(feature.Id.ToString()))
+                                {
+                                    continue;
+                                }
+
                                 var featObj = System.Text.Json.Nodes.JsonNode.Parse(featElem.GetRawText())?.AsObject();
                                 if (featObj != null)
                                 {
                                     var props = featObj["properties"]?.AsObject() ?? new System.Text.Json.Nodes.JsonObject();
                                     props["featureId"] = feature.Id;
-                                    props["targetFeatureId"] = feature.Id.ToString();
+                                    props["targetFeatureId"] = subTargetId;
                                     props["gameSessionPlannableLayerId"] = feature.GameSessionPlannableLayerId;
                                     props["layerKey"] = feature.GameSessionPlannableLayer?.PlannableLayerDefinition?.Key ?? "default";
                                     props["layerName"] = feature.GameSessionPlannableLayer?.PlannableLayerDefinition?.Name ?? "Layer";
@@ -417,12 +424,18 @@ public class PlanService : IPlanService
                     }
                     else if (root.ValueKind == System.Text.Json.JsonValueKind.Object && root.TryGetProperty("type", out var featTypeProp) && featTypeProp.GetString() == "Feature")
                     {
+                        string subTargetId = $"{feature.Id}_0";
+                        if (demolishedFeatureIds.Contains(subTargetId) || demolishedFeatureIds.Contains(feature.Id.ToString()))
+                        {
+                            continue;
+                        }
+
                         var featObj = System.Text.Json.Nodes.JsonNode.Parse(feature.GeoJsonGeometry)?.AsObject();
                         if (featObj != null)
                         {
                             var props = featObj["properties"]?.AsObject() ?? new System.Text.Json.Nodes.JsonObject();
                             props["featureId"] = feature.Id;
-                            props["targetFeatureId"] = feature.Id.ToString();
+                            props["targetFeatureId"] = subTargetId;
                             props["gameSessionPlannableLayerId"] = feature.GameSessionPlannableLayerId;
                             props["layerKey"] = feature.GameSessionPlannableLayer?.PlannableLayerDefinition?.Key ?? "default";
                             props["layerName"] = feature.GameSessionPlannableLayer?.PlannableLayerDefinition?.Name ?? "Layer";
@@ -436,6 +449,12 @@ public class PlanService : IPlanService
                     }
                     else
                     {
+                        string subTargetId = $"{feature.Id}_0";
+                        if (demolishedFeatureIds.Contains(subTargetId) || demolishedFeatureIds.Contains(feature.Id.ToString()))
+                        {
+                            continue;
+                        }
+
                         var geomObj = System.Text.Json.Nodes.JsonNode.Parse(feature.GeoJsonGeometry);
                         var featObj = new System.Text.Json.Nodes.JsonObject
                         {
@@ -444,7 +463,7 @@ public class PlanService : IPlanService
                             ["properties"] = new System.Text.Json.Nodes.JsonObject
                             {
                                 ["featureId"] = feature.Id,
-                                ["targetFeatureId"] = feature.Id.ToString(),
+                                ["targetFeatureId"] = subTargetId,
                                 ["gameSessionPlannableLayerId"] = feature.GameSessionPlannableLayerId,
                                 ["layerKey"] = feature.GameSessionPlannableLayer?.PlannableLayerDefinition?.Key ?? "default",
                                 ["layerName"] = feature.GameSessionPlannableLayer?.PlannableLayerDefinition?.Name ?? "Layer",

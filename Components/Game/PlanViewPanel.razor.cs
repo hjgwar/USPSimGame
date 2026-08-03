@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Components;
+using Microsoft.JSInterop;
 using USPSimGame.Data.Entities;
 using USPSimGame.Services;
 using USPSimGame.Services.Plans;
@@ -11,6 +12,7 @@ public partial class PlanViewPanel : ComponentBase, IDisposable
     [Inject] public IPlanNotifierService PlanNotifier { get; set; } = default!;
     [Inject] public IPlanApprovalEvaluationService EvaluationService { get; set; } = default!;
     [Inject] public USPSimGame.Services.CreatorAuthState AdminAuthState { get; set; } = default!;
+    [Inject] public Microsoft.JSInterop.IJSRuntime JSRuntime { get; set; } = default!;
 
     [Parameter, EditorRequired] public Plan Plan { get; set; } = default!;
     [Parameter] public int StartYear { get; set; } = 2026;
@@ -22,6 +24,7 @@ public partial class PlanViewPanel : ComponentBase, IDisposable
 
     protected bool IsDropdownOpen { get; set; } = false;
     protected bool IsJudgmentPanelOpen { get; set; } = false;
+    protected PlanFeature? SelectedFeature { get; set; }
 
     protected PlanApprovalEvaluation? Evaluation { get; set; }
     protected List<PlanTeamJudgment> Judgments { get; set; } = new();
@@ -143,15 +146,57 @@ public partial class PlanViewPanel : ComponentBase, IDisposable
         StateHasChanged();
     }
 
+    protected async Task SelectFeatureForHighlightAsync(PlanFeature feature)
+    {
+        if (SelectedFeature == feature)
+        {
+            SelectedFeature = null;
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("uspsim2d5.clearPlanHighlight");
+            }
+            catch { }
+        }
+        else
+        {
+            SelectedFeature = feature;
+            try
+            {
+                if (!string.IsNullOrWhiteSpace(feature.GeoJsonGeometry))
+                {
+                    string color = feature.GameSessionPlannableLayer?.PlannableLayerDefinition?.DefaultColor ?? "#3b82f6";
+                    await JSRuntime.InvokeVoidAsync("uspsim2d5.renderPlanFeatures", feature.GeoJsonGeometry, color);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[PlanViewPanel] Error highlighting feature: {ex.Message}");
+            }
+        }
+        StateHasChanged();
+    }
+
     protected async Task CloseAsync()
     {
         IsDropdownOpen = false;
+        SelectedFeature = null;
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("uspsim2d5.clearPlanHighlight");
+        }
+        catch { }
         await OnClose.InvokeAsync();
     }
 
     protected async Task EditPlanAsync()
     {
         IsDropdownOpen = false;
+        SelectedFeature = null;
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("uspsim2d5.clearPlanHighlight");
+        }
+        catch { }
         await OnEditPlan.InvokeAsync(Plan);
     }
 
@@ -199,5 +244,10 @@ public partial class PlanViewPanel : ComponentBase, IDisposable
     public void Dispose()
     {
         PlanNotifier.OnPlansChanged -= HandleJudgmentsUpdatedEvent;
+        try
+        {
+            _ = JSRuntime.InvokeVoidAsync("uspsim2d5.clearPlanHighlight");
+        }
+        catch { }
     }
 }
