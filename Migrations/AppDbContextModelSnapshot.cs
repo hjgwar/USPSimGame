@@ -40,9 +40,15 @@ namespace USPSimGame.Migrations
                     b.Property<int>("CurrentMonth")
                         .HasColumnType("integer");
 
+                    b.Property<int>("MonthDurationSeconds")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<int?>("RemainingSecondsOnPause")
+                        .HasColumnType("integer");
 
                     b.Property<int>("StartYear")
                         .HasColumnType("integer");
@@ -50,6 +56,9 @@ namespace USPSimGame.Migrations
                     b.Property<string>("State")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<DateTime?>("TargetMonthEndUtc")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("Zoom")
                         .HasColumnType("integer");
@@ -304,6 +313,9 @@ namespace USPSimGame.Migrations
                     b.Property<string>("GeoJsonGeometry")
                         .HasColumnType("text");
 
+                    b.Property<bool>("IsDemolition")
+                        .HasColumnType("boolean");
+
                     b.Property<int>("PlanId")
                         .HasColumnType("integer");
 
@@ -360,15 +372,24 @@ namespace USPSimGame.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<int>("BaseConstructionTimeMonths")
+                        .HasColumnType("integer");
+
+                    b.Property<double>("BaseInvestmentPoints")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("BaseMonthlyExpensePoints")
+                        .HasColumnType("double precision");
+
                     b.Property<string>("Category")
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<double>("ConstructionTimeModifierPerUnit")
+                        .HasColumnType("double precision");
+
                     b.Property<string>("DefaultColor")
                         .HasColumnType("text");
-
-                    b.Property<int>("DefaultExpenseDurationMonths")
-                        .HasColumnType("integer");
 
                     b.Property<double?>("DefaultLineWidthPx")
                         .HasColumnType("double precision");
@@ -414,9 +435,12 @@ namespace USPSimGame.Migrations
                         new
                         {
                             Id = 1,
+                            BaseConstructionTimeMonths = 6,
+                            BaseInvestmentPoints = 50.0,
+                            BaseMonthlyExpensePoints = 2.0,
                             Category = "Infrastructure",
+                            ConstructionTimeModifierPerUnit = 0.0001,
                             DefaultColor = "#f59e0b",
-                            DefaultExpenseDurationMonths = 120,
                             DefaultLineWidthPx = 2.5,
                             Description = "Zoned land polygon area designated for ground-mounted solar PV development.",
                             GeometryType = "Polygon",
@@ -430,25 +454,31 @@ namespace USPSimGame.Migrations
                         new
                         {
                             Id = 2,
+                            BaseConstructionTimeMonths = 12,
+                            BaseInvestmentPoints = 100.0,
+                            BaseMonthlyExpensePoints = 5.0,
                             Category = "Infrastructure",
+                            ConstructionTimeModifierPerUnit = 0.00020000000000000001,
                             DefaultColor = "#06b6d4",
-                            DefaultExpenseDurationMonths = 120,
                             DefaultLineWidthPx = 2.5,
                             Description = "Zoned land polygon area designated for onshore wind turbine installations.",
                             GeometryType = "Polygon",
                             Icon = "bi-wind",
-                            InvestmentPointsPerUnit = 30.0,
+                            InvestmentPointsPerUnit = 50.0,
                             IsEnabledByDefault = true,
                             Key = "wind-farm",
-                            MonthlyExpensePointsPerUnit = 1.0,
+                            MonthlyExpensePointsPerUnit = 2.0,
                             Name = "Wind Farm Zone"
                         },
                         new
                         {
                             Id = 3,
+                            BaseConstructionTimeMonths = 1,
+                            BaseInvestmentPoints = 10.0,
+                            BaseMonthlyExpensePoints = 1.0,
                             Category = "Infrastructure",
+                            ConstructionTimeModifierPerUnit = 0.5,
                             DefaultColor = "#10b981",
-                            DefaultExpenseDurationMonths = 120,
                             DefaultLineWidthPx = 2.0,
                             Description = "Public or commercial electric vehicle charging station hub point location.",
                             GeometryType = "Point",
@@ -456,36 +486,42 @@ namespace USPSimGame.Migrations
                             InvestmentPointsPerUnit = 30.0,
                             IsEnabledByDefault = true,
                             Key = "ev-charger-hub",
-                            MonthlyExpensePointsPerUnit = 1.0,
+                            MonthlyExpensePointsPerUnit = 0.5,
                             Name = "EV Charging Station Hub"
                         },
                         new
                         {
                             Id = 4,
+                            BaseConstructionTimeMonths = 2,
+                            BaseInvestmentPoints = 15.0,
+                            BaseMonthlyExpensePoints = 0.5,
                             Category = "Infrastructure",
+                            ConstructionTimeModifierPerUnit = 0.0050000000000000001,
                             DefaultColor = "#3b82f6",
-                            DefaultExpenseDurationMonths = 120,
                             DefaultLineWidthPx = 3.5,
                             Description = "High, medium, or low voltage power transmission or distribution line.",
                             GeometryType = "Line",
                             Icon = "bi-lightning-charge-fill",
-                            InvestmentPointsPerUnit = 30.0,
+                            InvestmentPointsPerUnit = 20.0,
                             IsEnabledByDefault = true,
                             Key = "power-cable",
-                            MonthlyExpensePointsPerUnit = 1.0,
+                            MonthlyExpensePointsPerUnit = 0.5,
                             Name = "Electricity Connection Cable"
                         },
                         new
                         {
                             Id = 5,
+                            BaseConstructionTimeMonths = 4,
+                            BaseInvestmentPoints = 40.0,
+                            BaseMonthlyExpensePoints = 3.0,
                             Category = "Infrastructure",
+                            ConstructionTimeModifierPerUnit = 1.0,
                             DefaultColor = "#ef4444",
-                            DefaultExpenseDurationMonths = 120,
                             DefaultLineWidthPx = 2.0,
                             Description = "Electrical grid transformer station or substations for voltage step-down/step-up.",
                             GeometryType = "Point",
                             Icon = "bi-box-seam",
-                            InvestmentPointsPerUnit = 30.0,
+                            InvestmentPointsPerUnit = 40.0,
                             IsEnabledByDefault = true,
                             Key = "transformer-substation",
                             MonthlyExpensePointsPerUnit = 1.0,
@@ -520,6 +556,132 @@ namespace USPSimGame.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("PlayerSessions");
+                });
+
+            modelBuilder.Entity("USPSimGame.Data.Entities.SimulationKpiOutput", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("GameSessionId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("KpiName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("SimulatedMonth")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("SimulatorKey")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int?>("TeamId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Unit")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<double>("Value")
+                        .HasColumnType("double precision");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GameSessionId");
+
+                    b.HasIndex("TeamId");
+
+                    b.ToTable("SimulationKpiOutputs");
+                });
+
+            modelBuilder.Entity("USPSimGame.Data.Entities.SimulationMapOutput", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("BoundingBoxJson")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("DataType")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("GameSessionId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("GeoJsonOrImageData")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("LayerName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("SimulatedMonth")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("SimulatorKey")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GameSessionId");
+
+                    b.ToTable("SimulationMapOutputs");
+                });
+
+            modelBuilder.Entity("USPSimGame.Data.Entities.SimulationModuleDefinition", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text");
+
+                    b.Property<string>("EndpointUrlOrPath")
+                        .HasColumnType("text");
+
+                    b.Property<int>("ExecutionOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("RequiredTags")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("SimulatorType")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("SimulationModuleDefinitions");
                 });
 
             modelBuilder.Entity("USPSimGame.Data.Entities.Team", b =>
@@ -694,6 +856,34 @@ namespace USPSimGame.Migrations
                     b.Navigation("Plan");
 
                     b.Navigation("Team");
+                });
+
+            modelBuilder.Entity("USPSimGame.Data.Entities.SimulationKpiOutput", b =>
+                {
+                    b.HasOne("USPSimGame.Data.Entities.GameSession", "GameSession")
+                        .WithMany()
+                        .HasForeignKey("GameSessionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("USPSimGame.Data.Entities.Team", "Team")
+                        .WithMany()
+                        .HasForeignKey("TeamId");
+
+                    b.Navigation("GameSession");
+
+                    b.Navigation("Team");
+                });
+
+            modelBuilder.Entity("USPSimGame.Data.Entities.SimulationMapOutput", b =>
+                {
+                    b.HasOne("USPSimGame.Data.Entities.GameSession", "GameSession")
+                        .WithMany()
+                        .HasForeignKey("GameSessionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("GameSession");
                 });
 
             modelBuilder.Entity("USPSimGame.Data.Entities.Team", b =>

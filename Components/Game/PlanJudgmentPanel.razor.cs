@@ -15,6 +15,7 @@ public partial class PlanJudgmentPanel : ComponentBase, IDisposable
     [Parameter] public EventCallback OnJudgmentsUpdated { get; set; }
 
     [Inject] public USPSimGame.Services.Costing.ICostCalculationService CostCalculationService { get; set; } = default!;
+    [Inject] public IPlanNotifierService PlanNotifier { get; set; } = default!;
 
     private bool IsLoading { get; set; } = true;
     private PlanApprovalEvaluation? Evaluation { get; set; }
@@ -34,7 +35,7 @@ public partial class PlanJudgmentPanel : ComponentBase, IDisposable
 
     protected override void OnInitialized()
     {
-        PlanService.OnPlanJudgmentsUpdated += HandleJudgmentsUpdated;
+        PlanNotifier.OnPlansChanged += HandleJudgmentsUpdated;
     }
 
     private async Task HandleJudgmentsUpdated(int gameSessionId)
@@ -97,6 +98,6 @@ public partial class PlanJudgmentPanel : ComponentBase, IDisposable
 
     public void Dispose()
     {
-        PlanService.OnPlanJudgmentsUpdated -= HandleJudgmentsUpdated;
+        PlanNotifier.OnPlansChanged -= HandleJudgmentsUpdated;
     }
 }

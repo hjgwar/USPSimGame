@@ -13,14 +13,35 @@
             <div>
                 <span class="fw-semibold text-dark small">@(Definition?.Name ?? "Layer")</span>
                 <span class="badge bg-warning-subtle text-dark border border-warning-subtle micro-text me-1">@(Definition?.GeometryType)</span>
-                <span class="badge bg-light text-dark border micro-text ms-1"><i class="bi bi-bank text-success me-1"></i> @CalculatedInvestmentPoints pts</span>
+                @if (HasGeometry)
+                {
+                    @if (IsDemolition)
+                    {
+                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle micro-text me-1"><i class="bi bi-trash me-1"></i>Demolition</span>
+                    }
+                    <span class="badge bg-light text-dark border micro-text ms-1" title="Upfront investment deduction">
+                        <i class="bi bi-bank text-danger me-1"></i> -@CalculatedInvestmentPoints pts
+                    </span>
+                    @if (CalculatedMonthlyExpensePoints < 0)
+                    {
+                        <span class="badge bg-success-subtle text-success border border-success-subtle micro-text ms-1 fw-bold" title="Monthly expense savings (budget relief)">
+                            <i class="bi bi-arrow-repeat text-success me-1"></i> +@Math.Abs(CalculatedMonthlyExpensePoints) pts/mo
+                        </span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-light text-dark border micro-text ms-1" title="Monthly expense cost">
+                            <i class="bi bi-arrow-repeat text-danger me-1"></i> -@CalculatedMonthlyExpensePoints pts/mo
+                        </span>
+                    }
+                }
             </div>
         </div>
 
         <div class="d-flex align-items-center gap-2">
             @if (IsActive)
             {
-                <span class="badge bg-success text-white micro-text">Active</span>
+                <span class="badge @(IsDemolition ? "bg-danger" : "bg-success") text-white micro-text">Active</span>
             }
             @if (ShowRemoveButton && OnRemove.HasDelegate)
             {

@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Components;
+using Microsoft.JSInterop;
 using USPSimGame.Data.Entities;
+using USPSimGame.Services;
 using USPSimGame.Services.Plans;
 
 namespace USPSimGame.Components.Game;
@@ -7,8 +9,10 @@ namespace USPSimGame.Components.Game;
 public partial class PlanViewPanel : ComponentBase, IDisposable
 {
     [Inject] public IPlanService PlanService { get; set; } = default!;
+    [Inject] public IPlanNotifierService PlanNotifier { get; set; } = default!;
     [Inject] public IPlanApprovalEvaluationService EvaluationService { get; set; } = default!;
     [Inject] public USPSimGame.Services.CreatorAuthState AdminAuthState { get; set; } = default!;
+    [Inject] public Microsoft.JSInterop.IJSRuntime JSRuntime { get; set; } = default!;
 
     [Parameter, EditorRequired] public Plan Plan { get; set; } = default!;
     [Parameter] public int StartYear { get; set; } = 2026;
@@ -20,6 +24,7 @@ public partial class PlanViewPanel : ComponentBase, IDisposable
 
     protected bool IsDropdownOpen { get; set; } = false;
     protected bool IsJudgmentPanelOpen { get; set; } = false;
+    protected PlanFeature? SelectedFeature { get; set; }
 
     protected PlanApprovalEvaluation? Evaluation { get; set; }
     protected List<PlanTeamJudgment> Judgments { get; set; } = new();
@@ -31,7 +36,7 @@ public partial class PlanViewPanel : ComponentBase, IDisposable
     protected bool IsLockedByOther => !string.IsNullOrEmpty(Plan.LockedBySessionId) &&
                                      Plan.LockedBySessionId != CurrentPlayerSessionId.ToString();
 
-    protected bool CanChangeState => (Plan.TeamId == CurrentTeamId || AdminAuthState.IsAuthenticated) && Plan.State != PlanState.Implemented;
+    protected bool CanChangeState => (Plan.TeamId == CurrentTeamId || AdminAuthState.IsAuthenticated) && Plan.State != PlanState.Implemented && Plan.State != PlanState.Implementing;
 
     protected bool CanApprovePlan
     {
@@ -66,13 +71,18 @@ public partial class PlanViewPanel : ComponentBase, IDisposable
 
     protected override void OnInitialized()
     {
-        PlanService.OnPlanJudgmentsUpdated += HandleJudgmentsUpdatedEvent;
+        PlanNotifier.OnPlansChanged += HandleJudgmentsUpdatedEvent;
     }
 
     private async Task HandleJudgmentsUpdatedEvent(int gameSessionId)
     {
         if (Plan != null && Plan.GameSessionId == gameSessionId)
         {
+            var updatedPlan = await PlanService.GetPlanDetailsAsync(Plan.Id);
+            if (updatedPlan != null)
+            {
+                Plan = updatedPlan;
+            }
             await LoadEvaluationAndJudgmentsAsync();
             await InvokeAsync(StateHasChanged);
         }
@@ -136,22 +146,64 @@ public partial class PlanViewPanel : ComponentBase, IDisposable
         StateHasChanged();
     }
 
+    protected async Task SelectFeatureForHighlightAsync(PlanFeature feature)
+    {
+        if (SelectedFeature == feature)
+        {
+            SelectedFeature = null;
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("uspsim2d5.clearPlanHighlight");
+            }
+            catch { }
+        }
+        else
+        {
+            SelectedFeature = feature;
+            try
+            {
+                if (!string.IsNullOrWhiteSpace(feature.GeoJsonGeometry))
+                {
+                    string color = feature.GameSessionPlannableLayer?.PlannableLayerDefinition?.DefaultColor ?? "#3b82f6";
+                    await JSRuntime.InvokeVoidAsync("uspsim2d5.renderPlanFeatures", feature.GeoJsonGeometry, color);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[PlanViewPanel] Error highlighting feature: {ex.Message}");
+            }
+        }
+        StateHasChanged();
+    }
+
     protected async Task CloseAsync()
     {
         IsDropdownOpen = false;
+        SelectedFeature = null;
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("uspsim2d5.clearPlanHighlight");
+        }
+        catch { }
         await OnClose.InvokeAsync();
     }
 
     protected async Task EditPlanAsync()
     {
         IsDropdownOpen = false;
+        SelectedFeature = null;
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("uspsim2d5.clearPlanHighlight");
+        }
+        catch { }
         await OnEditPlan.InvokeAsync(Plan);
     }
 
     protected async Task ChangeStateAsync(PlanState newState)
     {
         IsDropdownOpen = false;
-        if (newState == PlanState.Implemented || !CanChangeState) return;
+        if (newState == PlanState.Implemented || newState == PlanState.Implementing || !CanChangeState) return;
 
         Plan.State = newState;
         await PlanService.UpdatePlanStateAsync(Plan.Id, newState);
@@ -171,6 +223,7 @@ public partial class PlanViewPanel : ComponentBase, IDisposable
             PlanState.Consultation => "bg-warning-subtle text-dark border-warning-subtle",
             PlanState.Requested => "bg-info-subtle text-info border-info-subtle",
             PlanState.Approved => "bg-primary-subtle text-primary border-primary-subtle",
+            PlanState.Implementing => "bg-warning text-dark border-warning-subtle",
             PlanState.Implemented => "bg-success-subtle text-success border-success-subtle",
             PlanState.Archived => "bg-dark-subtle text-muted border-dark-subtle",
             _ => "bg-light text-dark"
@@ -190,6 +243,11 @@ public partial class PlanViewPanel : ComponentBase, IDisposable
 
     public void Dispose()
     {
-        PlanService.OnPlanJudgmentsUpdated -= HandleJudgmentsUpdatedEvent;
+        PlanNotifier.OnPlansChanged -= HandleJudgmentsUpdatedEvent;
+        try
+        {
+            _ = JSRuntime.InvokeVoidAsync("uspsim2d5.clearPlanHighlight");
+        }
+        catch { }
     }
 }

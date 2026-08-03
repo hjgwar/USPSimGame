@@ -6,6 +6,7 @@ public enum PlanState
     Consultation,
     Requested,
     Approved,
+    Implementing,
     Implemented,
     Archived
 }

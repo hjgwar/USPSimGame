@@ -1,23 +1,41 @@
 using Microsoft.AspNetCore.Components;
+using USPSimGame.Data.Entities;
 using USPSimGame.Services;
 using USPSimGame.Services.Costing;
-using USPSimGame.Services.Layers;
 
 namespace USPSimGame.Components.Game;
 
-public partial class TeamBudgetWidget : ComponentBase
+public partial class TeamBudgetWidget : ComponentBase, IDisposable
 {
     [Inject] public ITeamService TeamService { get; set; } = default!;
     [Inject] public ITeamBudgetService TeamBudgetService { get; set; } = default!;
+    [Inject] public IGameSessionNotifierService SessionNotifier { get; set; } = default!;
+    [Inject] public IPlanNotifierService PlanNotifier { get; set; } = default!;
 
     [Parameter, EditorRequired] public int TeamId { get; set; }
 
     protected double CurrentBalance { get; set; } = 100;
     protected double MonthlyExpenseBurden { get; set; } = 0;
 
+    protected override void OnInitialized()
+    {
+        SessionNotifier.OnGameSessionStateChanged += HandleSessionStateChangedAsync;
+        PlanNotifier.OnPlansChanged += HandlePlansChangedAsync;
+    }
+
     protected override async Task OnParametersSetAsync()
     {
         await LoadBudgetStatusAsync();
+    }
+
+    private async Task HandleSessionStateChangedAsync(GameSession session)
+    {
+        await InvokeAsync(RefreshAsync);
+    }
+
+    private async Task HandlePlansChangedAsync(int gameSessionId)
+    {
+        await InvokeAsync(RefreshAsync);
     }
 
     public async Task RefreshAsync()
@@ -42,5 +60,11 @@ public partial class TeamBudgetWidget : ComponentBase
         {
             Console.WriteLine($"[TeamBudgetWidget] Error loading budget status: {ex.Message}");
         }
+    }
+
+    public void Dispose()
+    {
+        SessionNotifier.OnGameSessionStateChanged -= HandleSessionStateChangedAsync;
+        PlanNotifier.OnPlansChanged -= HandlePlansChangedAsync;
     }
 }

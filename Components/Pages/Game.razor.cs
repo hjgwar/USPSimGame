@@ -25,7 +25,13 @@ public partial class Game : ComponentBase, IDisposable
     public ITeamService TeamService { get; set; } = default!;
 
     [Inject]
+    public ITeamNotifierService TeamNotifier { get; set; } = default!;
+
+    [Inject]
     public IGameSessionService GameSessionService { get; set; } = default!;
+
+    [Inject]
+    public IGameSessionNotifierService Notifier { get; set; } = default!;
 
     [Inject]
     public IJSRuntime JSRuntime { get; set; } = default!;
@@ -133,8 +139,8 @@ public partial class Game : ComponentBase, IDisposable
                         }
                     }
                     SessionTeams = await TeamService.GetTeamsByGameSessionAsync(session.Id);
-                    TeamService.OnTeamAreaChanged += HandleTeamAreaChangedAsync;
-                    GameSessionService.OnGameSessionStateChanged += HandleGameSessionStateChangedAsync;
+                    TeamNotifier.OnTeamAreaChanged += HandleTeamAreaChangedAsync;
+                    Notifier.OnGameSessionStateChanged += HandleGameSessionStateChangedAsync;
                     await JSRuntime.InvokeVoidAsync("uspsim2d5.refreshTeamAreas", session.Id);
 
                     _dotNetRef = DotNetObjectReference.Create(this);
@@ -167,11 +173,15 @@ public partial class Game : ComponentBase, IDisposable
         }
     }
 
-    private async Task HandleGameSessionStateChangedAsync(int sessionId, Data.Enums.GameState newState)
+    private async Task HandleGameSessionStateChangedAsync(GameSession updatedSession)
     {
-        if (PlayerSessionState.CurrentGameSession?.Id == sessionId)
+        if (PlayerSessionState.CurrentGameSession?.Id == updatedSession.Id)
         {
-            PlayerSessionState.CurrentGameSession.State = newState;
+            PlayerSessionState.CurrentGameSession.State = updatedSession.State;
+            PlayerSessionState.CurrentGameSession.CurrentMonth = updatedSession.CurrentMonth;
+            PlayerSessionState.CurrentGameSession.MonthDurationSeconds = updatedSession.MonthDurationSeconds;
+            PlayerSessionState.CurrentGameSession.TargetMonthEndUtc = updatedSession.TargetMonthEndUtc;
+            PlayerSessionState.CurrentGameSession.RemainingSecondsOnPause = updatedSession.RemainingSecondsOnPause;
             await InvokeAsync(StateHasChanged);
         }
     }
@@ -314,8 +324,8 @@ public partial class Game : ComponentBase, IDisposable
 
     public void Dispose()
     {
-        TeamService.OnTeamAreaChanged -= HandleTeamAreaChangedAsync;
-        GameSessionService.OnGameSessionStateChanged -= HandleGameSessionStateChangedAsync;
+        TeamNotifier.OnTeamAreaChanged -= HandleTeamAreaChangedAsync;
+        Notifier.OnGameSessionStateChanged -= HandleGameSessionStateChangedAsync;
         _dotNetRef?.Dispose();
     }
 }

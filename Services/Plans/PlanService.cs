@@ -7,17 +7,16 @@ namespace USPSimGame.Services.Plans;
 public class PlanService : IPlanService
 {
     private readonly IDbContextFactory<AppDbContext> _dbContextFactory;
+    private readonly IPlanNotifierService _planNotifier;
     private readonly ILogger<PlanService> _logger;
-
-    public event Func<int, Plan, Task>? OnPlanCreated;
-    public event Func<int, Task>? OnPlanLockChanged;
-    public event Func<int, Task>? OnPlanJudgmentsUpdated;
 
     public PlanService(
         IDbContextFactory<AppDbContext> dbContextFactory,
+        IPlanNotifierService planNotifier,
         ILogger<PlanService> logger)
     {
         _dbContextFactory = dbContextFactory;
+        _planNotifier = planNotifier;
         _logger = logger;
     }
 
@@ -123,7 +122,9 @@ public class PlanService : IPlanService
                     PlanId = plan.Id,
                     GameSessionPlannableLayerId = featPayload.GameSessionPlannableLayerId,
                     GeoJsonGeometry = featPayload.GeoJsonGeometry,
-                    PropertiesJson = featPayload.PropertiesJson
+                    PropertiesJson = featPayload.PropertiesJson,
+                    IsDemolition = featPayload.IsDemolition,
+                    TargetFeatureId = featPayload.TargetFeatureId
                 };
 
                 context.PlanFeatures.Add(feature);
@@ -135,17 +136,7 @@ public class PlanService : IPlanService
 
         var createdPlan = (await GetPlanDetailsAsync(plan.Id))!;
 
-        if (OnPlanCreated != null)
-        {
-            try
-            {
-                await OnPlanCreated.Invoke(gameSessionId, createdPlan);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "PlanService: Exception invoking OnPlanCreated subscribers.");
-            }
-        }
+        await _planNotifier.NotifyPlansChangedAsync(gameSessionId);
 
         return createdPlan;
     }
@@ -184,7 +175,9 @@ public class PlanService : IPlanService
                     PlanId = plan.Id,
                     GameSessionPlannableLayerId = featPayload.GameSessionPlannableLayerId,
                     GeoJsonGeometry = featPayload.GeoJsonGeometry,
-                    PropertiesJson = featPayload.PropertiesJson
+                    PropertiesJson = featPayload.PropertiesJson,
+                    IsDemolition = featPayload.IsDemolition,
+                    TargetFeatureId = featPayload.TargetFeatureId
                 });
             }
         }
@@ -193,33 +186,21 @@ public class PlanService : IPlanService
         _logger.LogInformation("PlanService: Updated Plan #{PlanId} '{Name}' details and features.", plan.Id, plan.Name);
 
         var updatedPlan = (await GetPlanDetailsAsync(plan.Id))!;
-
-        if (OnPlanCreated != null)
-        {
-            try
-            {
-                await OnPlanCreated.Invoke(updatedPlan.GameSessionId, updatedPlan);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "PlanService: Exception invoking OnPlanCreated subscribers on update.");
-            }
-        }
-
+        await _planNotifier.NotifyPlansChangedAsync(updatedPlan.GameSessionId);
         return updatedPlan;
     }
 
     public async Task UpdatePlanStateAsync(int planId, PlanState newState)
     {
-        if (newState == PlanState.Implemented)
+        if (newState == PlanState.Implemented || newState == PlanState.Implementing)
         {
-            _logger.LogWarning("PlanService: Implemented state cannot be set manually by a player.");
+            _logger.LogWarning("PlanService: Implemented and Implementing states cannot be set manually by a player.");
             return;
         }
 
         await using var context = await _dbContextFactory.CreateDbContextAsync();
         var plan = await context.Plans.FindAsync(planId);
-        if (plan != null && plan.State != PlanState.Implemented)
+        if (plan != null && plan.State != PlanState.Implemented && plan.State != PlanState.Implementing)
         {
             plan.State = newState;
             plan.UpdatedAt = DateTime.UtcNow;
@@ -231,10 +212,7 @@ public class PlanService : IPlanService
                 await ResetPlanJudgmentsAsync(planId);
             }
 
-            if (OnPlanLockChanged != null)
-            {
-                try { await OnPlanLockChanged.Invoke(plan.GameSessionId); } catch { }
-            }
+            await _planNotifier.NotifyPlansChangedAsync(plan.GameSessionId);
         }
     }
 
@@ -274,11 +252,7 @@ public class PlanService : IPlanService
 
         await context.SaveChangesAsync();
         _logger.LogInformation("PlanService: Team #{TeamId} submitted judgment '{Judgment}' for Plan #{PlanId}", teamId, judgment, planId);
-
-        if (OnPlanJudgmentsUpdated != null)
-        {
-            try { await OnPlanJudgmentsUpdated.Invoke(plan.GameSessionId); } catch { }
-        }
+        await _planNotifier.NotifyPlansChangedAsync(plan.GameSessionId);
     }
 
     public async Task ResetPlanJudgmentsAsync(int planId)
@@ -296,11 +270,7 @@ public class PlanService : IPlanService
             context.PlanTeamJudgments.RemoveRange(existingList);
             await context.SaveChangesAsync();
             _logger.LogInformation("PlanService: Reset judgments for Plan #{PlanId}", planId);
-
-            if (OnPlanJudgmentsUpdated != null)
-            {
-                try { await OnPlanJudgmentsUpdated.Invoke(plan.GameSessionId); } catch { }
-            }
+            await _planNotifier.NotifyPlansChangedAsync(plan.GameSessionId);
         }
     }
 
@@ -329,18 +299,7 @@ public class PlanService : IPlanService
         await context.SaveChangesAsync();
 
         _logger.LogInformation("PlanService: Locked Plan #{PlanId} for PlayerSession #{SessionId}", planId, playerSessionId);
-
-        if (OnPlanLockChanged != null)
-        {
-            try
-            {
-                await OnPlanLockChanged.Invoke(plan.GameSessionId);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "PlanService: Exception invoking OnPlanLockChanged subscribers.");
-            }
-        }
+        await _planNotifier.NotifyPlanLockChangedAsync(planId, plan.GameSessionId);
 
         return (true, null);
     }
@@ -358,18 +317,7 @@ public class PlanService : IPlanService
             await context.SaveChangesAsync();
 
             _logger.LogInformation("PlanService: Unlocked Plan #{PlanId}", planId);
-
-            if (OnPlanLockChanged != null)
-            {
-                try
-                {
-                    await OnPlanLockChanged.Invoke(sessionId);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "PlanService: Exception invoking OnPlanLockChanged subscribers.");
-                }
-            }
+            await _planNotifier.NotifyPlanLockChangedAsync(planId, sessionId);
         }
     }
 
@@ -384,5 +332,163 @@ public class PlanService : IPlanService
             PlanState.Archived => 5,
             _ => 99
         };
+    }
+
+    public async Task<string> GetImplementedFeaturesGeoJsonAsync(int gameSessionId, int? targetSimMonth = null)
+    {
+        await using var context = await _dbContextFactory.CreateDbContextAsync();
+
+        if (!targetSimMonth.HasValue)
+        {
+            var session = await context.GameSessions.FindAsync(gameSessionId);
+            targetSimMonth = session?.CurrentMonth ?? 0;
+        }
+
+        var implementedPlans = await context.Plans
+            .Include(p => p.Team)
+            .Include(p => p.Features)
+                .ThenInclude(f => f.GameSessionPlannableLayer)
+                    .ThenInclude(l => l!.PlannableLayerDefinition)
+            .Where(p => p.GameSessionId == gameSessionId && p.State == PlanState.Implemented && p.StartMonth <= targetSimMonth.Value)
+            .OrderBy(p => p.StartMonth)
+            .ThenBy(p => p.Id)
+            .ToListAsync();
+
+        if (!implementedPlans.Any())
+        {
+            return "{\"type\":\"FeatureCollection\",\"features\":[]}";
+        }
+
+        var demolishedFeatureIds = new HashSet<string>();
+        foreach (var plan in implementedPlans)
+        {
+            foreach (var feature in plan.Features.Where(f => f.IsDemolition))
+            {
+                if (!string.IsNullOrEmpty(feature.TargetFeatureId))
+                {
+                    var ids = feature.TargetFeatureId.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                    foreach (var id in ids)
+                    {
+                        demolishedFeatureIds.Add(id);
+                    }
+                }
+            }
+        }
+
+        var featuresList = new List<object>();
+        foreach (var plan in implementedPlans)
+        {
+            foreach (var feature in plan.Features)
+            {
+                if (feature.IsDemolition) continue;
+                if (string.IsNullOrWhiteSpace(feature.GeoJsonGeometry)) continue;
+
+                try
+                {
+                    using var doc = System.Text.Json.JsonDocument.Parse(feature.GeoJsonGeometry);
+                    var root = doc.RootElement;
+
+                    if (root.ValueKind == System.Text.Json.JsonValueKind.Object && root.TryGetProperty("type", out var typeProp) && typeProp.GetString() == "FeatureCollection")
+                    {
+                        if (root.TryGetProperty("features", out var featsArray) && featsArray.ValueKind == System.Text.Json.JsonValueKind.Array)
+                        {
+                            int subIndex = 0;
+                            foreach (var featElem in featsArray.EnumerateArray())
+                            {
+                                string subTargetId = $"{feature.Id}_{subIndex}";
+                                subIndex++;
+
+                                if (demolishedFeatureIds.Contains(subTargetId) || demolishedFeatureIds.Contains(feature.Id.ToString()))
+                                {
+                                    continue;
+                                }
+
+                                var featObj = System.Text.Json.Nodes.JsonNode.Parse(featElem.GetRawText())?.AsObject();
+                                if (featObj != null)
+                                {
+                                    var props = featObj["properties"]?.AsObject() ?? new System.Text.Json.Nodes.JsonObject();
+                                    props["featureId"] = feature.Id;
+                                    props["targetFeatureId"] = subTargetId;
+                                    props["gameSessionPlannableLayerId"] = feature.GameSessionPlannableLayerId;
+                                    props["layerKey"] = feature.GameSessionPlannableLayer?.PlannableLayerDefinition?.Key ?? "default";
+                                    props["layerName"] = feature.GameSessionPlannableLayer?.PlannableLayerDefinition?.Name ?? "Layer";
+                                    props["color"] = feature.GameSessionPlannableLayer?.PlannableLayerDefinition?.DefaultColor ?? "#3b82f6";
+                                    props["icon"] = feature.GameSessionPlannableLayer?.PlannableLayerDefinition?.Icon ?? "bi-layers-fill";
+                                    props["teamName"] = plan.Team?.Name ?? "";
+                                    props["teamColor"] = plan.Team?.Color ?? "#3b82f6";
+                                    featObj["properties"] = props;
+                                    featuresList.Add(featObj);
+                                }
+                            }
+                        }
+                    }
+                    else if (root.ValueKind == System.Text.Json.JsonValueKind.Object && root.TryGetProperty("type", out var featTypeProp) && featTypeProp.GetString() == "Feature")
+                    {
+                        string subTargetId = $"{feature.Id}_0";
+                        if (demolishedFeatureIds.Contains(subTargetId) || demolishedFeatureIds.Contains(feature.Id.ToString()))
+                        {
+                            continue;
+                        }
+
+                        var featObj = System.Text.Json.Nodes.JsonNode.Parse(feature.GeoJsonGeometry)?.AsObject();
+                        if (featObj != null)
+                        {
+                            var props = featObj["properties"]?.AsObject() ?? new System.Text.Json.Nodes.JsonObject();
+                            props["featureId"] = feature.Id;
+                            props["targetFeatureId"] = subTargetId;
+                            props["gameSessionPlannableLayerId"] = feature.GameSessionPlannableLayerId;
+                            props["layerKey"] = feature.GameSessionPlannableLayer?.PlannableLayerDefinition?.Key ?? "default";
+                            props["layerName"] = feature.GameSessionPlannableLayer?.PlannableLayerDefinition?.Name ?? "Layer";
+                            props["color"] = feature.GameSessionPlannableLayer?.PlannableLayerDefinition?.DefaultColor ?? "#3b82f6";
+                            props["icon"] = feature.GameSessionPlannableLayer?.PlannableLayerDefinition?.Icon ?? "bi-layers-fill";
+                            props["teamName"] = plan.Team?.Name ?? "";
+                            props["teamColor"] = plan.Team?.Color ?? "#3b82f6";
+                            featObj["properties"] = props;
+                            featuresList.Add(featObj);
+                        }
+                    }
+                    else
+                    {
+                        string subTargetId = $"{feature.Id}_0";
+                        if (demolishedFeatureIds.Contains(subTargetId) || demolishedFeatureIds.Contains(feature.Id.ToString()))
+                        {
+                            continue;
+                        }
+
+                        var geomObj = System.Text.Json.Nodes.JsonNode.Parse(feature.GeoJsonGeometry);
+                        var featObj = new System.Text.Json.Nodes.JsonObject
+                        {
+                            ["type"] = "Feature",
+                            ["geometry"] = geomObj,
+                            ["properties"] = new System.Text.Json.Nodes.JsonObject
+                            {
+                                ["featureId"] = feature.Id,
+                                ["targetFeatureId"] = subTargetId,
+                                ["gameSessionPlannableLayerId"] = feature.GameSessionPlannableLayerId,
+                                ["layerKey"] = feature.GameSessionPlannableLayer?.PlannableLayerDefinition?.Key ?? "default",
+                                ["layerName"] = feature.GameSessionPlannableLayer?.PlannableLayerDefinition?.Name ?? "Layer",
+                                ["color"] = feature.GameSessionPlannableLayer?.PlannableLayerDefinition?.DefaultColor ?? "#3b82f6",
+                                ["icon"] = feature.GameSessionPlannableLayer?.PlannableLayerDefinition?.Icon ?? "bi-layers-fill",
+                                ["teamName"] = plan.Team?.Name ?? "",
+                                ["teamColor"] = plan.Team?.Color ?? "#3b82f6"
+                            }
+                        };
+                        featuresList.Add(featObj);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning("PlanService: Failed to parse GeoJSON geometry for feature #{FeatureId}: {Message}", feature.Id, ex.Message);
+                }
+            }
+        }
+
+        var collection = new System.Text.Json.Nodes.JsonObject
+        {
+            ["type"] = "FeatureCollection",
+            ["features"] = System.Text.Json.Nodes.JsonNode.Parse(System.Text.Json.JsonSerializer.Serialize(featuresList))
+        };
+
+        return collection.ToJsonString();
     }
 }

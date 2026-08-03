@@ -162,3 +162,11 @@ window.uspsim2d5.makeElementDraggable = function (elId) {
         document.onmousemove = null;
     }
 };
+
+window.uspsim2d5.toggleImplementedFeaturesVisibility = function (isVisible) {
+    const layer = window._mapLayers ? window._mapLayers['implemented-features-layer'] : null;
+    if (layer) {
+        layer.setVisible(isVisible);
+        if (window.activeOlMap) window.activeOlMap.render();
+    }
+};

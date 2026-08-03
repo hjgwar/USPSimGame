@@ -45,7 +45,7 @@
         </div>
         @if (PlayerSessionState.CurrentGameSession != null)
         {
-            <div class="border-start ps-3">
+            <div class="border-start ps-3 text-center">
                 @if (PlayerSessionState.IsAdmin)
                 {
                     <button type="button" class="btn p-0 border-0 align-baseline cursor-pointer" @onclick="ToggleStateControlPanel" title="Click to control game session state">
@@ -60,6 +60,15 @@
                         @PlayerSessionState.CurrentGameSession.State
                     </span>
                 }
+
+                @if ((PlayerSessionState.CurrentGameSession.State == GameState.Play || PlayerSessionState.CurrentGameSession.State == GameState.Pause) && !string.IsNullOrEmpty(RemainingTimeFormatted))
+                {
+                    <div class="mt-1">
+                        <span class="badge bg-dark text-white font-monospace px-2 py-1 small shadow-sm" title="@(PlayerSessionState.CurrentGameSession.State == GameState.Pause ? "Timer paused" : "Time remaining in month")">
+                            <i class="bi bi-stopwatch me-1 text-warning"></i>@RemainingTimeFormatted
+                        </span>
+                    </div>
+                }
             </div>
         }
     </div>
@@ -69,21 +78,47 @@
 @if (ShowStateControlPanel && PlayerSessionState.CurrentGameSession != null)
 {
     <div class="position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-50 z-3 d-flex align-items-center justify-content-center">
-        <div class="card border-0 shadow-lg rounded-4 overflow-hidden" style="width: 420px; max-width: calc(100vw - 32px);">
+        <div class="card border-0 shadow-lg rounded-4 overflow-hidden" style="width: 440px; max-width: calc(100vw - 32px);">
             <div class="card-header bg-transparent border-bottom p-3 d-flex align-items-center justify-content-between">
                 <div class="d-flex align-items-center gap-2">
                     <i class="bi bi-sliders text-primary fs-5"></i>
-                    <h6 class="fw-bold text-dark mb-0">Game State Control Panel</h6>
+                    <h6 class="fw-bold text-dark mb-0">Game State & Timer Control Panel</h6>
                 </div>
                 <button type="button" class="btn-close" @onclick="ToggleStateControlPanel" title="Close panel"></button>
             </div>
 
             <div class="card-body p-4 text-center">
-                <div class="mb-4">
+                <div class="mb-3">
                     <span class="text-uppercase text-muted fw-bold extra-small d-block mb-1">Current State</span>
                     <span class="badge @PlayerSessionState.CurrentGameSession.State.GetGameStateBadgeClass() fs-5 px-3 py-2">
                         @PlayerSessionState.CurrentGameSession.State
                     </span>
+                </div>
+
+                <div class="bg-light p-3 rounded-3 mb-4 border text-start">
+                    <label class="form-label fw-bold text-dark small mb-2">
+                        <i class="bi bi-stopwatch text-primary me-1"></i>Month Duration in Play Phase
+                    </label>
+                    <div class="row g-2 align-items-center">
+                        <div class="col-4">
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-white text-muted">Min</span>
+                                <input type="number" class="form-control" min="0" max="60" @bind="DurationMinutes" />
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text bg-white text-muted">Sec</span>
+                                <input type="number" class="form-control" min="0" max="59" step="5" @bind="DurationSeconds" />
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <button type="button" class="btn btn-sm btn-outline-primary w-100 fw-semibold" @onclick="ApplyDurationAsync">
+                                <i class="bi bi-check2 me-1"></i>Apply
+                            </button>
+                        </div>
+                    </div>
+                    <small class="text-muted extra-small d-block mt-1">Each month will automatically countdown for this duration when in Play state.</small>
                 </div>
 
                 <div class="d-flex flex-column gap-3">

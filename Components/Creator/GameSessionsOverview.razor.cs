@@ -4,10 +4,13 @@ using USPSimGame.Services;
 
 namespace USPSimGame.Components.Creator;
 
-public partial class GameSessionsOverview : ComponentBase
+public partial class GameSessionsOverview : ComponentBase, IDisposable
 {
     [Inject]
     public IGameSessionService GameSessionService { get; set; } = default!;
+
+    [Inject]
+    public IGameSessionNotifierService Notifier { get; set; } = default!;
 
     [Parameter, EditorRequired]
     public User CurrentUser { get; set; } = default!;
@@ -27,7 +30,13 @@ public partial class GameSessionsOverview : ComponentBase
 
     protected override async Task OnInitializedAsync()
     {
+        Notifier.OnGameSessionStateChanged += HandleSessionStateChangedAsync;
         await LoadSessionsAsync();
+    }
+
+    private async Task HandleSessionStateChangedAsync(GameSession updatedSession)
+    {
+        await InvokeAsync(LoadSessionsAsync);
     }
 
     protected async Task LoadSessionsAsync()
@@ -103,5 +112,10 @@ public partial class GameSessionsOverview : ComponentBase
     {
         ShowTeamsModal = false;
         SelectedSession = null;
+    }
+
+    public void Dispose()
+    {
+        Notifier.OnGameSessionStateChanged -= HandleSessionStateChangedAsync;
     }
 }

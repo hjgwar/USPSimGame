@@ -1,14 +1,16 @@
 using Microsoft.AspNetCore.Components;
 using USPSimGame.Data.Entities;
-using USPSimGame.Data.Enums;
 using USPSimGame.Services;
 
 namespace USPSimGame.Components.Home;
 
-public partial class GameSessionSelector : ComponentBase
+public partial class GameSessionSelector : ComponentBase, IDisposable
 {
     [Inject]
     public IGameSessionService GameSessionService { get; set; } = default!;
+
+    [Inject]
+    public IGameSessionNotifierService Notifier { get; set; } = default!;
 
     [Parameter]
     public EventCallback<GameSession> OnSessionSelected { get; set; }
@@ -21,6 +23,12 @@ public partial class GameSessionSelector : ComponentBase
 
     protected override async Task OnInitializedAsync()
     {
+        Notifier.OnGameSessionStateChanged += HandleSessionStateChangedAsync;
+        await LoadSessionsAsync();
+    }
+
+    private async Task LoadSessionsAsync()
+    {
         IsLoading = true;
         try
         {
@@ -32,9 +40,19 @@ public partial class GameSessionSelector : ComponentBase
         }
     }
 
+    private async Task HandleSessionStateChangedAsync(GameSession updatedSession)
+    {
+        await InvokeAsync(LoadSessionsAsync);
+    }
+
     protected async Task SelectSession(GameSession session)
     {
         SelectedSessionId = session.Id;
         await OnSessionSelected.InvokeAsync(session);
+    }
+
+    public void Dispose()
+    {
+        Notifier.OnGameSessionStateChanged -= HandleSessionStateChangedAsync;
     }
 }

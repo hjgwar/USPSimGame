@@ -103,9 +103,12 @@ public partial class CreatorLayers : ComponentBase
             DefaultColor = "#3b82f6",
             DefaultLineWidthPx = 2.5,
             IsEnabledByDefault = false,
+            BaseInvestmentPoints = 0,
             InvestmentPointsPerUnit = 30,
+            BaseMonthlyExpensePoints = 0,
             MonthlyExpensePointsPerUnit = 1,
-            DefaultExpenseDurationMonths = 120
+            BaseConstructionTimeMonths = 0,
+            ConstructionTimeModifierPerUnit = 0
         };
         ShowPlannableModal = true;
     }
@@ -127,9 +130,12 @@ public partial class CreatorLayers : ComponentBase
             TranslatorTags = def.TranslatorTags,
             SimulatorTags = def.SimulatorTags,
             IsEnabledByDefault = def.IsEnabledByDefault,
+            BaseInvestmentPoints = def.BaseInvestmentPoints,
             InvestmentPointsPerUnit = def.InvestmentPointsPerUnit,
+            BaseMonthlyExpensePoints = def.BaseMonthlyExpensePoints,
             MonthlyExpensePointsPerUnit = def.MonthlyExpensePointsPerUnit,
-            DefaultExpenseDurationMonths = def.DefaultExpenseDurationMonths
+            BaseConstructionTimeMonths = def.BaseConstructionTimeMonths,
+            ConstructionTimeModifierPerUnit = def.ConstructionTimeModifierPerUnit
         };
         ShowPlannableModal = true;
     }

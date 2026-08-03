@@ -10,17 +10,18 @@ public class GameSessionService : IGameSessionService
 {
     private readonly IDbContextFactory<AppDbContext> _dbContextFactory;
     private readonly IMapLayerService _mapLayerService;
+    private readonly IGameSessionNotifierService _notifier;
     private readonly ILogger<GameSessionService> _logger;
-
-    public event Func<int, GameState, Task>? OnGameSessionStateChanged;
 
     public GameSessionService(
         IDbContextFactory<AppDbContext> dbContextFactory,
         IMapLayerService mapLayerService,
+        IGameSessionNotifierService notifier,
         ILogger<GameSessionService> logger)
     {
         _dbContextFactory = dbContextFactory;
         _mapLayerService = mapLayerService;
+        _notifier = notifier;
         _logger = logger;
     }
 
@@ -79,25 +80,66 @@ public class GameSessionService : IGameSessionService
 
     public async Task UpdateGameSessionStateAsync(int sessionId, GameState newState)
     {
+        await UpdateGameSessionStateWithTimerAsync(sessionId, newState, 120);
+    }
+
+    public async Task UpdateGameSessionStateWithTimerAsync(int sessionId, GameState newState, int monthDurationSeconds)
+    {
         await using var db = await _dbContextFactory.CreateDbContextAsync();
         var session = await db.GameSessions.FindAsync(sessionId);
         if (session != null)
         {
+            var oldState = session.State;
             session.State = newState;
-            await db.SaveChangesAsync();
-            _logger.LogInformation("GameSessionService: Session #{Id} state changed to {State}", sessionId, newState);
+            session.MonthDurationSeconds = monthDurationSeconds > 0 ? monthDurationSeconds : 120;
 
-            if (OnGameSessionStateChanged != null)
+            if (newState == GameState.Play)
             {
-                try
+                if (oldState == GameState.Play)
                 {
-                    await OnGameSessionStateChanged.Invoke(sessionId, newState);
+                    session.TargetMonthEndUtc = DateTime.UtcNow.AddSeconds(session.MonthDurationSeconds);
+                    session.RemainingSecondsOnPause = null;
                 }
-                catch (Exception ex)
+                else if (session.RemainingSecondsOnPause.HasValue && session.RemainingSecondsOnPause > 0)
                 {
-                    _logger.LogWarning(ex, "GameSessionService: Error notifying subscribers of state change.");
+                    session.TargetMonthEndUtc = DateTime.UtcNow.AddSeconds(session.RemainingSecondsOnPause.Value);
+                    session.RemainingSecondsOnPause = null;
+                }
+                else
+                {
+                    session.TargetMonthEndUtc = DateTime.UtcNow.AddSeconds(session.MonthDurationSeconds);
                 }
             }
+            else if (newState == GameState.Pause)
+            {
+                if (session.TargetMonthEndUtc.HasValue)
+                {
+                    int remaining = (int)(session.TargetMonthEndUtc.Value - DateTime.UtcNow).TotalSeconds;
+                    session.RemainingSecondsOnPause = remaining > 0 ? remaining : 0;
+                    session.TargetMonthEndUtc = null;
+                }
+            }
+            else if (newState == GameState.Setup)
+            {
+                session.CurrentMonth = 0;
+                session.TargetMonthEndUtc = null;
+                session.RemainingSecondsOnPause = null;
+            }
+
+            await db.SaveChangesAsync();
+            _logger.LogInformation("GameSessionService: Session #{Id} state changed from {OldState} to {NewState}", sessionId, oldState, newState);
+
+            await NotifyGameStateChangedAsync(sessionId, newState);
+        }
+    }
+
+    public async Task NotifyGameStateChangedAsync(int sessionId, GameState newState)
+    {
+        await using var db = await _dbContextFactory.CreateDbContextAsync();
+        var session = await db.GameSessions.FindAsync(sessionId);
+        if (session != null)
+        {
+            await _notifier.NotifyGameStateChangedAsync(session);
         }
     }
 }

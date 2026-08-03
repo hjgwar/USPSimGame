@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Components;
 using USPSimGame.Data.Entities;
 using USPSimGame.Data.Enums;
+using USPSimGame.Services;
 using USPSimGame.Services.Plans;
 
 namespace USPSimGame.Components.Game;
@@ -9,6 +10,9 @@ public partial class PlansControlPanel : ComponentBase, IDisposable
 {
     [Inject]
     public IPlanService PlanService { get; set; } = default!;
+
+    [Inject]
+    public IPlanNotifierService PlanNotifier { get; set; } = default!;
 
     [Parameter, EditorRequired]
     public int GameSessionId { get; set; }
@@ -52,12 +56,12 @@ public partial class PlansControlPanel : ComponentBase, IDisposable
             ExpandedStateGroups[state] = true;
         }
 
-        PlanService.OnPlanCreated += HandlePlanCreatedAsync;
-        PlanService.OnPlanLockChanged += HandlePlanLockChangedAsync;
+        PlanNotifier.OnPlansChanged += HandlePlansChangedAsync;
+        PlanNotifier.OnPlanLockChanged += HandlePlanLockChangedAsync;
         await LoadPlansAsync();
     }
 
-    private async Task HandlePlanCreatedAsync(int sessionId, Plan plan)
+    private async Task HandlePlansChangedAsync(int sessionId)
     {
         if (sessionId == GameSessionId)
         {
@@ -65,7 +69,7 @@ public partial class PlansControlPanel : ComponentBase, IDisposable
         }
     }
 
-    private async Task HandlePlanLockChangedAsync(int sessionId)
+    private async Task HandlePlanLockChangedAsync(int planId, int sessionId)
     {
         if (sessionId == GameSessionId)
         {
@@ -143,7 +147,7 @@ public partial class PlansControlPanel : ComponentBase, IDisposable
 
     public void Dispose()
     {
-        PlanService.OnPlanCreated -= HandlePlanCreatedAsync;
-        PlanService.OnPlanLockChanged -= HandlePlanLockChangedAsync;
+        PlanNotifier.OnPlansChanged -= HandlePlansChangedAsync;
+        PlanNotifier.OnPlanLockChanged -= HandlePlanLockChangedAsync;
     }
 }

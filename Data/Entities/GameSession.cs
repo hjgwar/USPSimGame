@@ -11,6 +11,9 @@ public class GameSession
     public int StartYear { get; set; } = 2026;
     public int CurrentMonth { get; set; } = 0;
     public GameState State { get; set; } = GameState.Setup;
+    public int MonthDurationSeconds { get; set; } = 120;
+    public DateTime? TargetMonthEndUtc { get; set; }
+    public int? RemainingSecondsOnPause { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.Now;
 
     public ICollection<GameSessionMapLayer> MapLayers { get; set; } = new List<GameSessionMapLayer>();

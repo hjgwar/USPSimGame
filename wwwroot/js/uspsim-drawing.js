@@ -145,6 +145,49 @@ window.uspsim2d5.startDrawing = function (geomType, strokeColor, fillColor, laye
         const layer = new ol.layer.Vector({
             source: source,
             style: function (feature) {
+                if (feature.get('isDemolition')) {
+                    const demoStyle = new ol.style.Style({
+                        fill: new ol.style.Fill({ color: 'rgba(239, 68, 68, 0.25)' }),
+                        stroke: new ol.style.Stroke({ color: '#ef4444', width: 3, lineDash: [6, 4] }),
+                        image: new ol.style.Circle({
+                            radius: 8,
+                            fill: new ol.style.Fill({ color: '#ef4444' }),
+                            stroke: new ol.style.Stroke({ color: '#ffffff', width: 1.5 })
+                        })
+                    });
+
+                    const geom = feature.getGeometry();
+                    let coords = [];
+                    if (geom) {
+                        const type = geom.getType();
+                        if (type === 'Polygon') {
+                            const rings = geom.getCoordinates();
+                            if (rings && rings[0]) coords = rings[0].slice(0, rings[0].length - 1);
+                        } else if (type === 'LineString') {
+                            coords = geom.getCoordinates();
+                        } else if (type === 'Point') {
+                            coords = [geom.getCoordinates()];
+                        }
+                    }
+
+                    const minusStyle = new ol.style.Style({
+                        geometry: coords.length > 0 ? new ol.geom.MultiPoint(coords) : null,
+                        image: new ol.style.Circle({
+                            radius: 7,
+                            fill: new ol.style.Fill({ color: '#dc2626' }),
+                            stroke: new ol.style.Stroke({ color: '#ffffff', width: 1.5 })
+                        }),
+                        text: new ol.style.Text({
+                            text: '−',
+                            font: 'bold 12px sans-serif',
+                            fill: new ol.style.Fill({ color: '#ffffff' }),
+                            offsetY: 0
+                        })
+                    });
+
+                    return [demoStyle, minusStyle];
+                }
+
                 const mainStyle = new ol.style.Style({
                     fill: new ol.style.Fill({ color: fillCol }),
                     stroke: new ol.style.Stroke({ color: strokeCol, width: 3 }),
@@ -248,10 +291,19 @@ window.uspsim2d5.startDrawing = function (geomType, strokeColor, fillColor, laye
             currentDraft.redoStack = [];
         }
         window._activeSketchGeometry = null;
+        setTimeout(function () {
+            window.uspsim2d5.notifyGeometryChanged(layerId);
+        }, 50);
     });
 
     window._modifyInteraction = new ol.interaction.Modify({
         source: window._drawSource
+    });
+
+    window._modifyInteraction.on('modifyend', function () {
+        setTimeout(function () {
+            window.uspsim2d5.notifyGeometryChanged(layerId);
+        }, 50);
     });
 
     map.addInteraction(window._drawInteraction);
@@ -430,7 +482,130 @@ window.uspsim2d5.redoDrawPoint = function () {
     }
 };
 
+window._blazorPlanPanelDotNetRef = null;
+window._selectedImplementedFeature = null;
+
+window.uspsim2d5.registerPlanPanelDotNetRef = function (dotNetRef) {
+    window._blazorPlanPanelDotNetRef = dotNetRef;
+    if (dotNetRef) {
+        this.initImplementedFeatureSelection();
+    }
+};
+
+window.uspsim2d5.unregisterPlanPanelDotNetRef = function () {
+    window._blazorPlanPanelDotNetRef = null;
+    if (window._selectedImplementedFeature) {
+        window._selectedImplementedFeature.setStyle(null);
+        window._selectedImplementedFeature = null;
+    }
+};
+
+window.uspsim2d5.notifyGeometryChanged = function (layerId) {
+    if (window._blazorPlanPanelDotNetRef && layerId) {
+        const geoJsonStr = this.getDrawnGeoJsonForLayer(layerId);
+        try {
+            window._blazorPlanPanelDotNetRef.invokeMethodAsync('OnDraftGeometryUpdated', layerId.toString(), geoJsonStr || '');
+        } catch (e) {
+            console.warn('[uspsim2d5] Error invoking OnDraftGeometryUpdated:', e);
+        }
+    }
+};
+
+window.uspsim2d5.initImplementedFeatureSelection = function () {
+    const map = window.activeOlMap;
+    if (!map || window._implementedSelectionInitialized) return;
+
+    window._implementedSelectionInitialized = true;
+
+    const selectStyle = function (feature) {
+        return new ol.style.Style({
+            fill: new ol.style.Fill({ color: 'rgba(239, 68, 68, 0.35)' }),
+            stroke: new ol.style.Stroke({ color: '#ef4444', width: 4.5 }),
+            image: new ol.style.Circle({
+                radius: 10,
+                fill: new ol.style.Fill({ color: '#ef4444' }),
+                stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 })
+            })
+        });
+    };
+
+    map.on('singleclick', function (evt) {
+        let clickedFeature = null;
+
+        map.forEachFeatureAtPixel(evt.pixel, function (feature, layer) {
+            if (layer === window._mapLayers['implemented-features-layer']) {
+                clickedFeature = feature;
+                return true;
+            }
+        }, { hitTolerance: 12 });
+
+        if (clickedFeature) {
+            if (window._selectedImplementedFeature && window._selectedImplementedFeature !== clickedFeature) {
+                window._selectedImplementedFeature.setStyle(null);
+            }
+            window._selectedImplementedFeature = clickedFeature;
+            clickedFeature.setStyle(selectStyle);
+            console.log('[uspsim2d5] Implemented feature selected on map for demolition:', clickedFeature.getProperties());
+        } else if (window._selectedImplementedFeature) {
+            window._selectedImplementedFeature.setStyle(null);
+            window._selectedImplementedFeature = null;
+        }
+    });
+};
+
 window.uspsim2d5.deleteSelectedVertex = function () {
+    // 1. If an implemented feature is selected on map, mark it for demolition!
+    if (window._selectedImplementedFeature) {
+        const feat = window._selectedImplementedFeature;
+        const props = feat.getProperties() || {};
+        const targetFeatureId = props.targetFeatureId || (props.featureId ? props.featureId.toString() : '');
+        const gameSessionPlannableLayerId = props.gameSessionPlannableLayerId;
+
+        console.log('[uspsim2d5] Converting selected implemented feature to Demolition:', props);
+
+        const format = new ol.format.GeoJSON();
+        const geoJsonStr = format.writeGeometry(feat.getGeometry(), {
+            dataProjection: 'EPSG:4326',
+            featureProjection: 'EPSG:3857'
+        });
+
+        const layerIdStr = gameSessionPlannableLayerId ? gameSessionPlannableLayerId.toString() : (window._currentDraftLayerId || 'default');
+
+        // Add feature to active draft vector layer as a demolition item (isDemolition: true)
+        if (!window._draftVectorLayers[layerIdStr]) {
+            window.uspsim2d5.startDrawing('Polygon', props.color || '#ef4444', 'rgba(239, 68, 68, 0.25)', layerIdStr);
+        }
+
+        const draftObj = window._draftVectorLayers[layerIdStr];
+        if (draftObj) {
+            const demoFeature = format.readFeature({
+                type: 'Feature',
+                geometry: JSON.parse(geoJsonStr),
+                properties: { isDemolition: true }
+            }, { featureProjection: 'EPSG:3857' });
+
+            demoFeature.set('isDemolition', true);
+            draftObj.source.addFeature(demoFeature);
+            draftObj.undoStack.push(demoFeature);
+        }
+
+        // Notify Blazor C# component
+        if (window._blazorPlanPanelDotNetRef) {
+            try {
+                window._blazorPlanPanelDotNetRef.invokeMethodAsync('OnDemolitionFeatureAddedFromMap', layerIdStr, geoJsonStr, targetFeatureId);
+            } catch (e) {
+                console.warn('[uspsim2d5] Error invoking OnDemolitionFeatureAddedFromMap:', e);
+            }
+        }
+
+        // Reset selected implemented feature
+        feat.setStyle(null);
+        window._selectedImplementedFeature = null;
+        if (window.activeOlMap) window.activeOlMap.render();
+        return true;
+    }
+
+    // 2. Existing draft vertex/point deletion logic
     const sel = window._selectedDraftVertex;
     const layerId = window._currentDraftLayerId;
     if (!sel || !layerId || !window._draftVectorLayers || !window._draftVectorLayers[layerId]) {
@@ -485,10 +660,14 @@ window.uspsim2d5.getDrawnGeoJsonForLayer = function (layerId) {
     const map = window.activeOlMap;
     if (!map || !window._draftVectorLayers || !window._draftVectorLayers[layerId]) return null;
     const source = window._draftVectorLayers[layerId].source;
-    const features = source.getFeatures();
-    if (!features || features.length === 0) return null;
+    const allFeatures = source.getFeatures();
+    if (!allFeatures || allFeatures.length === 0) return null;
+
+    const additionFeatures = allFeatures.filter(f => !f.get('isDemolition'));
+    if (!additionFeatures || additionFeatures.length === 0) return null;
+
     const geojsonFormat = new ol.format.GeoJSON();
-    return geojsonFormat.writeFeatures(features, {
+    return geojsonFormat.writeFeatures(additionFeatures, {
         dataProjection: 'EPSG:4326',
         featureProjection: map.getView().getProjection()
     });
@@ -501,7 +680,7 @@ window.uspsim2d5.getDrawnGeoJson = function () {
     return null;
 };
 
-window.uspsim2d5.loadDraftFeatureGeometry = function (layerId, geoJsonString) {
+window.uspsim2d5.loadDraftFeatureGeometry = function (layerId, geoJsonString, isDemolition) {
     const map = window.activeOlMap;
     if (!map || !geoJsonString || !window._draftVectorLayers || !window._draftVectorLayers[layerId]) return;
 
@@ -514,12 +693,15 @@ window.uspsim2d5.loadDraftFeatureGeometry = function (layerId, geoJsonString) {
 
         const draftObj = window._draftVectorLayers[layerId];
         draftObj.source.clear();
-        draftObj.source.addFeatures(features);
         features.forEach(function (f) {
+            if (isDemolition) {
+                f.set('isDemolition', true);
+            }
+            draftObj.source.addFeature(f);
             draftObj.undoStack.push(f);
         });
         map.render();
-        console.log('[uspsim2d5] Loaded existing draft feature geometry into layer', layerId);
+        console.log('[uspsim2d5] Loaded existing draft feature geometry into layer', layerId, 'isDemolition:', !!isDemolition);
     } catch (err) {
         console.error('[uspsim2d5] Error loading draft feature geometry:', err);
     }
@@ -535,5 +717,110 @@ window.uspsim2d5.removeDraftLayer = function (layerId) {
             map.removeLayer(window._draftVectorLayers[layerId].layer);
         } catch (e) { }
         delete window._draftVectorLayers[layerId];
+    }
+};
+
+window.uspsim2d5.loadSessionImplementedFeatures = function (sessionId, targetMonth) {
+    console.log(`[Implemented Layer] Fetching implemented features for Session #${sessionId}...`);
+    let apiUrl = `/api/layers/${sessionId}/implemented-features`;
+    if (typeof targetMonth === 'number') {
+        apiUrl += `?targetMonth=${targetMonth}`;
+    }
+
+    fetch(apiUrl)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status} when fetching implemented features`);
+            }
+            return response.json();
+        })
+        .then(geoJsonObj => {
+            console.log(`[Implemented Layer] Successfully loaded implemented features! Count: ${geoJsonObj.features ? geoJsonObj.features.length : 0}`);
+            window.uspsim2d5.renderImplementedFeaturesLayer(geoJsonObj);
+        })
+        .catch(err => {
+            console.error(`[Implemented Layer] Error loading implemented features:`, err);
+        });
+};
+
+window.uspsim2d5.renderImplementedFeaturesLayer = function (geoJsonInput) {
+    if (!geoJsonInput || !window.ol) return;
+
+    try {
+        const geoJsonObj = typeof geoJsonInput === 'string' ? JSON.parse(geoJsonInput) : geoJsonInput;
+        const format = new ol.format.GeoJSON();
+        const features = format.readFeatures(geoJsonObj, { featureProjection: 'EPSG:3857' });
+
+        const styleFunction = function (feature) {
+            const props = feature.getProperties() || {};
+            const strokeCol = props.color || props.teamColor || '#10b981';
+            const fillCol = window.uspsim2d5.hexToRgba ? window.uspsim2d5.hexToRgba(strokeCol, 0.35) : 'rgba(16, 185, 129, 0.35)';
+            const geomType = feature.getGeometry() ? feature.getGeometry().getType() : '';
+
+            if (geomType === 'Point' || geomType === 'MultiPoint') {
+                return new ol.style.Style({
+                    image: new ol.style.Circle({
+                        radius: 7,
+                        fill: new ol.style.Fill({ color: strokeCol }),
+                        stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 })
+                    })
+                });
+            }
+
+            if (geomType === 'Polygon' || geomType === 'MultiPolygon') {
+                return new ol.style.Style({
+                    fill: new ol.style.Fill({ color: fillCol }),
+                    stroke: new ol.style.Stroke({ color: strokeCol, width: 2.5 })
+                });
+            }
+
+            return new ol.style.Style({
+                stroke: new ol.style.Stroke({
+                    color: strokeCol,
+                    width: 3.5
+                })
+            });
+        };
+
+        const layerKey = 'implemented-features-layer';
+        const initialVisible = window._desiredVisibilities[layerKey] ?? true;
+        const initialZIndex = window._desiredZIndices[layerKey] ?? 200;
+
+        const vectorSource = new ol.source.Vector({ features: features });
+        let vectorLayer = window._mapLayers[layerKey];
+
+        if (vectorLayer) {
+            vectorLayer.setSource(vectorSource);
+            vectorLayer.setVisible(initialVisible);
+            vectorLayer.setZIndex(initialZIndex);
+        } else {
+            vectorLayer = new ol.layer.Vector({
+                source: vectorSource,
+                style: styleFunction,
+                zIndex: initialZIndex,
+                visible: initialVisible
+            });
+            window._mapLayers[layerKey] = vectorLayer;
+        }
+
+        const map = window.activeOlMap;
+        if (map) {
+            if (!map.getLayers().getArray().includes(vectorLayer)) {
+                map.addLayer(vectorLayer);
+            }
+            map.render();
+            window.uspsim2d5.initImplementedFeatureSelection();
+        } else {
+            window._pendingLayersToRender = window._pendingLayersToRender || [];
+            window._pendingLayersToRender.push(function () {
+                if (window.activeOlMap && !window.activeOlMap.getLayers().getArray().includes(vectorLayer)) {
+                    window.activeOlMap.addLayer(vectorLayer);
+                    window.activeOlMap.render();
+                    window.uspsim2d5.initImplementedFeatureSelection();
+                }
+            });
+        }
+    } catch (err) {
+        console.error('[Implemented Layer] Error rendering implemented features layer:', err);
     }
 };

@@ -20,6 +20,9 @@ public class AppDbContext : DbContext
     public DbSet<Plan> Plans => Set<Plan>();
     public DbSet<PlanFeature> PlanFeatures => Set<PlanFeature>();
     public DbSet<PlanTeamJudgment> PlanTeamJudgments => Set<PlanTeamJudgment>();
+    public DbSet<SimulationKpiOutput> SimulationKpiOutputs => Set<SimulationKpiOutput>();
+    public DbSet<SimulationMapOutput> SimulationMapOutputs => Set<SimulationMapOutput>();
+    public DbSet<SimulationModuleDefinition> SimulationModuleDefinitions => Set<SimulationModuleDefinition>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -213,6 +216,12 @@ public class AppDbContext : DbContext
                 Icon = "bi-sun-fill",
                 DefaultColor = "#f59e0b",
                 DefaultLineWidthPx = 2.5,
+                BaseInvestmentPoints = 50.0,
+                InvestmentPointsPerUnit = 30.0,
+                BaseMonthlyExpensePoints = 2.0,
+                MonthlyExpensePointsPerUnit = 1.0,
+                BaseConstructionTimeMonths = 6,
+                ConstructionTimeModifierPerUnit = 0.0001,
                 IsEnabledByDefault = true
             },
             new PlannableLayerDefinition
@@ -226,6 +235,12 @@ public class AppDbContext : DbContext
                 Icon = "bi-wind",
                 DefaultColor = "#06b6d4",
                 DefaultLineWidthPx = 2.5,
+                BaseInvestmentPoints = 100.0,
+                InvestmentPointsPerUnit = 50.0,
+                BaseMonthlyExpensePoints = 5.0,
+                MonthlyExpensePointsPerUnit = 2.0,
+                BaseConstructionTimeMonths = 12,
+                ConstructionTimeModifierPerUnit = 0.0002,
                 IsEnabledByDefault = true
             },
             new PlannableLayerDefinition
@@ -239,6 +254,12 @@ public class AppDbContext : DbContext
                 Icon = "bi-ev-station-fill",
                 DefaultColor = "#10b981",
                 DefaultLineWidthPx = 2.0,
+                BaseInvestmentPoints = 10.0,
+                InvestmentPointsPerUnit = 30.0,
+                BaseMonthlyExpensePoints = 1.0,
+                MonthlyExpensePointsPerUnit = 0.5,
+                BaseConstructionTimeMonths = 1,
+                ConstructionTimeModifierPerUnit = 0.5,
                 IsEnabledByDefault = true
             },
             new PlannableLayerDefinition
@@ -252,6 +273,12 @@ public class AppDbContext : DbContext
                 Icon = "bi-lightning-charge-fill",
                 DefaultColor = "#3b82f6",
                 DefaultLineWidthPx = 3.5,
+                BaseInvestmentPoints = 15.0,
+                InvestmentPointsPerUnit = 20.0,
+                BaseMonthlyExpensePoints = 0.5,
+                MonthlyExpensePointsPerUnit = 0.5,
+                BaseConstructionTimeMonths = 2,
+                ConstructionTimeModifierPerUnit = 0.005,
                 IsEnabledByDefault = true
             },
             new PlannableLayerDefinition
@@ -265,6 +292,12 @@ public class AppDbContext : DbContext
                 Icon = "bi-box-seam",
                 DefaultColor = "#ef4444",
                 DefaultLineWidthPx = 2.0,
+                BaseInvestmentPoints = 40.0,
+                InvestmentPointsPerUnit = 40.0,
+                BaseMonthlyExpensePoints = 3.0,
+                MonthlyExpensePointsPerUnit = 1.0,
+                BaseConstructionTimeMonths = 4,
+                ConstructionTimeModifierPerUnit = 1.0,
                 IsEnabledByDefault = true
             }
         );

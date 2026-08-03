@@ -132,8 +132,13 @@
             <div class="d-flex flex-column gap-2">
                 @foreach (var feat in Plan.Features)
                 {
+                    bool isSelected = (SelectedFeature == feat);
+
                     <PlanFeatureRow Definition="@feat.GameSessionPlannableLayer?.PlannableLayerDefinition"
-                                    GeoJsonGeometry="@feat.GeoJsonGeometry" />
+                                    GeoJsonGeometry="@feat.GeoJsonGeometry"
+                                    IsDemolition="@feat.IsDemolition"
+                                    IsActive="@isSelected"
+                                    OnSelect="() => SelectFeatureForHighlightAsync(feat)" />
                 }
             </div>
         </div>

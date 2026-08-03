@@ -35,14 +35,26 @@ public partial class PlannableLayerCatalogModal : ComponentBase
         };
     }
 
-    protected string GetUnitSuffix(PlannableGeometryType type)
+    protected string GetInvestmentUnitDisplay(PlannableGeometryType type)
     {
         return type switch
         {
-            PlannableGeometryType.Point => "/ point",
-            PlannableGeometryType.Line => "/ 50m",
-            PlannableGeometryType.Polygon => "/ m²",
-            _ => ""
+            PlannableGeometryType.Point => "pts / point",
+            PlannableGeometryType.Line => "pts / 50m",
+            PlannableGeometryType.Polygon => "pts / m²",
+            _ => "pts / unit"
         };
     }
+
+    protected string GetExpenseUnitDisplay(PlannableGeometryType type)
+    {
+        return type switch
+        {
+            PlannableGeometryType.Point => "pts / point / month",
+            PlannableGeometryType.Line => "pts / 50m / month",
+            PlannableGeometryType.Polygon => "pts / m² / month",
+            _ => "pts / unit / month"
+        };
+    }
+
 }

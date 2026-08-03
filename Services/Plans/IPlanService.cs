@@ -7,14 +7,12 @@ public class PlanFeaturePayload
     public int GameSessionPlannableLayerId { get; set; }
     public string? GeoJsonGeometry { get; set; }
     public string? PropertiesJson { get; set; }
+    public bool IsDemolition { get; set; } = false;
+    public string? TargetFeatureId { get; set; }
 }
 
 public interface IPlanService
 {
-    event Func<int, Plan, Task>? OnPlanCreated;
-    event Func<int, Task>? OnPlanLockChanged;
-    event Func<int, Task>? OnPlanJudgmentsUpdated;
-
     Task<List<Plan>> GetSessionPlansAsync(int gameSessionId, int currentTeamId = 0);
     Task<Plan?> GetPlanDetailsAsync(int planId);
     Task<Plan> CreatePlanAsync(int gameSessionId, int teamId, string name, string? description, int startMonth, List<PlanFeaturePayload> features);
@@ -27,4 +25,6 @@ public interface IPlanService
 
     Task<(bool Success, string? ErrorMessage)> TryLockPlanAsync(int planId, int playerSessionId);
     Task UnlockPlanAsync(int planId);
+
+    Task<string> GetImplementedFeaturesGeoJsonAsync(int gameSessionId, int? targetSimMonth = null);
 }

@@ -23,4 +23,6 @@ public class PlanFeature
 
     [Column(TypeName = "text")]
     public string? PropertiesJson { get; set; }
+
+    public bool IsDemolition { get; set; } = false;
 }
