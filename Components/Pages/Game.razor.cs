@@ -73,30 +73,23 @@ public partial class Game : ComponentBase, IDisposable
         }
     }
 
-    private Coordinate? _initialCenter;
-    private double? _initialZoom;
+    protected Coordinate InitialCenter { get; private set; } = new Coordinate(5.17516, 52.08640);
+    protected double InitialZoom { get; private set; } = 15;
 
-    protected Coordinate InitialCenter
+    protected override void OnInitialized()
     {
-        get
+        var session = PlayerSessionState.CurrentGameSession;
+        if (session != null && USPSimGame.Utils.GeoCoordinateConverter.TryParseLatLong(session.CenterLatLong, out double lat, out double lon))
         {
-            if (_initialCenter == null)
-            {
-                var session = PlayerSessionState.CurrentGameSession;
-                if (session != null && USPSimGame.Utils.GeoCoordinateConverter.TryParseLatLong(session.CenterLatLong, out double lat, out double lon))
-                {
-                    _initialCenter = new Coordinate(lon, lat);
-                }
-                else
-                {
-                    _initialCenter = new Coordinate(5.17516, 52.08640);
-                }
-            }
-            return _initialCenter ?? new Coordinate(5.17516, 52.08640);
+            InitialCenter = new Coordinate(lon, lat);
         }
-    }
+        else
+        {
+            Logger.LogWarning("Game.razor: Could not resolve CenterLatLong ('{Center}') for session {SessionId} at OnInitialized. Falling back to Utrecht Science Park default.", session?.CenterLatLong, session?.Id);
+        }
 
-    protected double InitialZoom => _initialZoom ??= (PlayerSessionState.CurrentGameSession?.Zoom ?? 15);
+        InitialZoom = session?.Zoom ?? 15;
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
