@@ -5,7 +5,6 @@
 @inject IPlanService PlanService
 @inject IPlanApprovalEvaluationService EvaluationService
 @inject PlayerSessionState PlayerState
-@inject CreatorAuthState AdminAuthState
 
 @if (IsOpen && TargetPlan != null)
 {
@@ -117,7 +116,7 @@
                                     </div>
 
                                     <!-- Interactive Judgments (if current player's team or Admin) -->
-                                    @if (isMyTeam || AdminAuthState.IsAuthenticated)
+                                    @if (isMyTeam || PlayerState.IsAdmin)
                                     {
                                         <div class="mt-2 pt-2 border-top">
                                             <small class="text-muted extra-small d-block mb-1">Select your team's judgment:</small>
@@ -137,6 +136,66 @@
                                                 <button type="button" class="btn btn-outline-danger @(currentType == PlanJudgmentType.Reject ? "active" : "")"
                                                         @onclick="() => SubmitJudgment(team.Id, PlanJudgmentType.Reject)">
                                                     <i class="bi bi-x-lg me-1"></i> Reject
+                                                </button>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    }
+
+                    <h6 class="fw-bold text-secondary mb-2 extra-small text-uppercase tracking-wider">Other Teams (may join)</h6>
+
+                    @if (!OptionalTeams.Any())
+                    {
+                        <p class="text-muted extra-small italic">No other teams are available to join this plan.</p>
+                    }
+                    else
+                    {
+                        <div class="d-flex flex-column gap-2 mb-4">
+                            @foreach (var team in OptionalTeams)
+                            {
+                                var j = Judgments.FirstOrDefault(x => x.TeamId == team.Id);
+                                var currentType = j?.Judgment ?? PlanJudgmentType.Undecided;
+                                bool isMyTeam = CurrentPlayerTeamId == team.Id;
+
+                                <div class="team-judgment-card p-3 rounded border bg-white shadow-sm @(isMyTeam ? "border-primary-subtle ring-1" : "")">
+                                    <div class="d-flex align-items-center justify-content-between mb-2">
+                                        <div class="d-flex align-items-center gap-2">
+                                            <span style="display:inline-block; width:14px; height:14px; border-radius:50%; background-color:@team.Color; border:1px solid rgba(0,0,0,0.15);"></span>
+                                            <span class="fw-bold text-dark fs-6">@team.Name</span>
+                                            @if (isMyTeam)
+                                            {
+                                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle extra-small ms-1">Your Team</span>
+                                            }
+                                        </div>
+
+                                        <!-- Judgment Badge -->
+                                        @switch (currentType)
+                                        {
+                                            case PlanJudgmentType.Join:
+                                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1"><i class="bi bi-people-fill me-1"></i> Joined</span>
+                                                break;
+                                            default:
+                                                <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1"><i class="bi bi-dash-circle me-1"></i> Undecided</span>
+                                                break;
+                                        }
+                                    </div>
+
+                                    <!-- Interactive Judgments (if current player's team or Admin) -->
+                                    @if (isMyTeam || PlayerState.IsAdmin)
+                                    {
+                                        <div class="mt-2 pt-2 border-top">
+                                            <small class="text-muted extra-small d-block mb-1">Select your team's judgment:</small>
+                                            <div class="btn-group btn-group-sm w-100" role="group">
+                                                <button type="button" class="btn btn-outline-secondary @(currentType == PlanJudgmentType.Undecided ? "active" : "")"
+                                                        @onclick="() => SubmitJudgment(team.Id, PlanJudgmentType.Undecided)">
+                                                    Undecided
+                                                </button>
+                                                <button type="button" class="btn btn-outline-primary @(currentType == PlanJudgmentType.Join ? "active" : "")"
+                                                        @onclick="() => SubmitJudgment(team.Id, PlanJudgmentType.Join)">
+                                                    <i class="bi bi-people me-1"></i> Join
                                                 </button>
                                             </div>
                                         </div>

@@ -11,13 +11,13 @@ public partial class PlanViewPanel : ComponentBase, IDisposable
     [Inject] public IPlanService PlanService { get; set; } = default!;
     [Inject] public IPlanNotifierService PlanNotifier { get; set; } = default!;
     [Inject] public IPlanApprovalEvaluationService EvaluationService { get; set; } = default!;
-    [Inject] public USPSimGame.Services.CreatorAuthState AdminAuthState { get; set; } = default!;
     [Inject] public Microsoft.JSInterop.IJSRuntime JSRuntime { get; set; } = default!;
 
     [Parameter, EditorRequired] public Plan Plan { get; set; } = default!;
     [Parameter] public int StartYear { get; set; } = 2026;
     [Parameter] public int CurrentTeamId { get; set; }
     [Parameter] public int CurrentPlayerSessionId { get; set; }
+    [Parameter] public bool IsAdmin { get; set; }
     [Parameter] public List<Team> SessionTeams { get; set; } = new();
     [Parameter] public EventCallback OnClose { get; set; }
     [Parameter] public EventCallback<Plan> OnEditPlan { get; set; }
@@ -36,7 +36,7 @@ public partial class PlanViewPanel : ComponentBase, IDisposable
     protected bool IsLockedByOther => !string.IsNullOrEmpty(Plan.LockedBySessionId) &&
                                      Plan.LockedBySessionId != CurrentPlayerSessionId.ToString();
 
-    protected bool CanChangeState => (Plan.TeamId == CurrentTeamId || AdminAuthState.IsAuthenticated) && Plan.State != PlanState.Implemented && Plan.State != PlanState.Implementing;
+    protected bool CanChangeState => (Plan.TeamId == CurrentTeamId || IsAdmin) && Plan.State != PlanState.Implemented && Plan.State != PlanState.Implementing;
 
     protected bool CanApprovePlan
     {
@@ -116,14 +116,11 @@ public partial class PlanViewPanel : ComponentBase, IDisposable
 
         states.Add(PlanState.Draft);
         states.Add(PlanState.Consultation);
+        states.Add(PlanState.Requested);
 
-        if (!Evaluation.RequiresMultiTeamApproval || AdminAuthState.IsAuthenticated)
+        if (!Evaluation.RequiresMultiTeamApproval || IsAdmin)
         {
             states.Add(PlanState.Approved);
-        }
-        else
-        {
-            states.Add(PlanState.Requested);
         }
 
         states.Add(PlanState.Archived);

@@ -32,6 +32,7 @@ public partial class SessionTeamsModal : ComponentBase
     protected string NewTeamName { get; set; } = string.Empty;
     protected string NewTeamPassword { get; set; } = string.Empty;
     protected string NewTeamColor { get; set; } = "#3b82f6";
+    protected int NewTeamAnnualBudgetAllowance { get; set; } = 100;
     protected bool IsLoading { get; set; } = true;
 
     // Inline edit state
@@ -39,6 +40,7 @@ public partial class SessionTeamsModal : ComponentBase
     protected string EditingTeamName { get; set; } = string.Empty;
     protected string EditingTeamPassword { get; set; } = string.Empty;
     protected string EditingTeamColor { get; set; } = "#3b82f6";
+    protected int EditingTeamAnnualBudgetAllowance { get; set; } = 100;
 
     protected override async Task OnInitializedAsync()
     {
@@ -110,6 +112,7 @@ public partial class SessionTeamsModal : ComponentBase
         NewTeamName = string.Empty;
         NewTeamPassword = string.Empty;
         NewTeamColor = "#3b82f6";
+        NewTeamAnnualBudgetAllowance = 100;
     }
 
     protected async Task AddTeamToSessionAsync()
@@ -122,7 +125,8 @@ public partial class SessionTeamsModal : ComponentBase
                 {
                     GameSessionId = Session.Id,
                     Name = NewTeamName.Trim(),
-                    Color = string.IsNullOrWhiteSpace(NewTeamColor) ? "#3b82f6" : NewTeamColor.Trim()
+                    Color = string.IsNullOrWhiteSpace(NewTeamColor) ? "#3b82f6" : NewTeamColor.Trim(),
+                    AnnualBudgetAllowance = NewTeamAnnualBudgetAllowance
                 };
 
                 await TeamService.CreateTeamAsync(newTeam, NewTeamPassword.Trim());
@@ -143,6 +147,7 @@ public partial class SessionTeamsModal : ComponentBase
         EditingTeamName = team.Name;
         EditingTeamPassword = string.Empty; // Blank means leave existing password unchanged
         EditingTeamColor = team.Color;
+        EditingTeamAnnualBudgetAllowance = (int)team.AnnualBudgetAllowance;
     }
 
     protected void CancelEditTeam()
@@ -151,6 +156,7 @@ public partial class SessionTeamsModal : ComponentBase
         EditingTeamName = string.Empty;
         EditingTeamPassword = string.Empty;
         EditingTeamColor = "#3b82f6";
+        EditingTeamAnnualBudgetAllowance = 100;
     }
 
     protected async Task SaveEditedTeamAsync()
@@ -164,7 +170,8 @@ public partial class SessionTeamsModal : ComponentBase
                     Id = EditingTeamId.Value,
                     GameSessionId = Session.Id,
                     Name = EditingTeamName.Trim(),
-                    Color = string.IsNullOrWhiteSpace(EditingTeamColor) ? "#3b82f6" : EditingTeamColor.Trim()
+                    Color = string.IsNullOrWhiteSpace(EditingTeamColor) ? "#3b82f6" : EditingTeamColor.Trim(),
+                    AnnualBudgetAllowance = EditingTeamAnnualBudgetAllowance
                 };
 
                 string? passwordArg = string.IsNullOrWhiteSpace(EditingTeamPassword) ? null : EditingTeamPassword.Trim();

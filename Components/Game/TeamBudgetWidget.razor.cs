@@ -17,6 +17,8 @@ public partial class TeamBudgetWidget : ComponentBase, IDisposable
     protected double CurrentBalance { get; set; } = 100;
     protected double MonthlyExpenseBurden { get; set; } = 0;
 
+    private int _loadedTeamId = -1;
+
     protected override void OnInitialized()
     {
         SessionNotifier.OnGameSessionStateChanged += HandleSessionStateChangedAsync;
@@ -25,7 +27,18 @@ public partial class TeamBudgetWidget : ComponentBase, IDisposable
 
     protected override async Task OnParametersSetAsync()
     {
-        await LoadBudgetStatusAsync();
+        // Note: this component's parent (GameOverlay) re-renders every second to drive a
+        // countdown timer, which would otherwise re-trigger a DB reload here every second too.
+        // Only reload when the TeamId parameter actually changes; ongoing balance updates are
+        // driven exclusively by the notifier events below, which fire once per real change
+        // after all DB writes for that tick are committed. Reloading on every render created a
+        // race where an old, slow-to-complete per-second read could overwrite a newer, correct
+        // notifier-triggered read (e.g. right after the annual budget refill).
+        if (TeamId != _loadedTeamId)
+        {
+            _loadedTeamId = TeamId;
+            await LoadBudgetStatusAsync();
+        }
     }
 
     private async Task HandleSessionStateChangedAsync(GameSession session)

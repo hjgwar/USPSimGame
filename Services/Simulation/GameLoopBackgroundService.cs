@@ -89,6 +89,7 @@ public class GameLoopBackgroundService : BackgroundService
                         .ToListAsync();
 
                     bool plansChanged = false;
+                    var newlyImplementedPlanIds = new List<int>();
                     foreach (var plan in sessionPlans)
                     {
                         int constructionMonths = await costService.CalculatePlanConstructionTimeMonthsAsync(plan.Id);
@@ -103,9 +104,11 @@ public class GameLoopBackgroundService : BackgroundService
                                 plansChanged = true;
                                 _logger.LogInformation("GameLoopBackgroundService: Plan #{PlanId} '{Name}' transitioned -> Implemented.", plan.Id, plan.Name);
 
-                                // Execute upfront investment point deductions
-                                await teamBudgetService.ExecutePlanImplementationCostsAsync(plan.Id);
-                                await teamNotifier.NotifyTeamAreaChangedAsync(session.Id);
+                                // Upfront investment point deductions are deferred until after this
+                                // tick's KPI snapshot (see step 3 below), so the balance drop is first
+                                // reflected in the snapshot for nextMonth (== plan.StartMonth), matching
+                                // the month the plan actually shows as Implemented.
+                                newlyImplementedPlanIds.Add(plan.Id);
                             }
                             else if (plan.State == PlanState.Draft || plan.State == PlanState.Consultation || plan.State == PlanState.Requested)
                             {
@@ -142,6 +145,19 @@ public class GameLoopBackgroundService : BackgroundService
 
                     // 3. Run Simulators & Budget Monthly Tick
                     await orchestrator.RunMonthlySimulationAsync(session.Id, simMonth);
+                    await teamBudgetService.ApplyAnnualBudgetRefillAsync(session.Id, monthOfYear);
+                    await teamBudgetService.RecordInvestmentPointsSnapshotAsync(session.Id, simMonth);
+
+                    // Execute deferred upfront investment point deductions for plans that just
+                    // transitioned to Implemented this tick. Running this after the snapshot above
+                    // ensures the deduction is first visible in the NEXT tick's snapshot, which is
+                    // labeled nextMonth (== plan.StartMonth) — matching the plan's implementation month.
+                    foreach (var planId in newlyImplementedPlanIds)
+                    {
+                        await teamBudgetService.ExecutePlanImplementationCostsAsync(planId);
+                        await teamNotifier.NotifyTeamAreaChangedAsync(session.Id);
+                    }
+
                     await budgetService.ProcessMonthlySimulationTickAsync(session.Id, simYear, monthOfYear);
 
                     // 4. Advance Month & Return to Play State

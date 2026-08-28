@@ -91,6 +91,7 @@ public class TeamService : ITeamService
 
         existing.Name = team.Name;
         existing.Color = string.IsNullOrWhiteSpace(team.Color) ? "#3b82f6" : team.Color;
+        existing.AnnualBudgetAllowance = team.AnnualBudgetAllowance;
 
         if (!string.IsNullOrEmpty(newPlainPassword))
         {
@@ -295,12 +296,19 @@ public class TeamService : ITeamService
                     }
                 }
 
+                double annualBudgetAllowance = 100;
+                if (element.TryGetProperty("AnnualBudgetAllowance", out var budgetProp) && budgetProp.TryGetDouble(out var parsedBudget))
+                {
+                    annualBudgetAllowance = parsedBudget;
+                }
+
                 var team = new Team
                 {
                     Name = nameProp.GetString()!.Trim(),
                     Color = colorProp.GetString()!.Trim(),
                     PasswordHash = passHashProp.GetString()!.Trim(),
-                    AreaDefinition = areaDefString
+                    AreaDefinition = areaDefString,
+                    AnnualBudgetAllowance = annualBudgetAllowance
                 };
 
                 teams.Add(team);
@@ -354,7 +362,8 @@ public class TeamService : ITeamService
             Name = t.Name,
             Color = t.Color,
             PasswordHash = t.PasswordHash,
-            AreaDefinition = t.AreaDefinition
+            AreaDefinition = t.AreaDefinition,
+            AnnualBudgetAllowance = t.AnnualBudgetAllowance
         }).ToList();
 
         try

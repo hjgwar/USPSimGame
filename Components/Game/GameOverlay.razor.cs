@@ -19,6 +19,7 @@ public partial class GameOverlay : ComponentBase, IDisposable
     public NavigationManager Navigation { get; set; } = default!;
 
     protected bool ShowStateControlPanel { get; set; } = false;
+    protected bool ShowKpiChartModal { get; set; } = false;
     protected int DurationMinutes { get; set; } = 2;
     protected int DurationSeconds { get; set; } = 0;
 
@@ -111,6 +112,11 @@ public partial class GameOverlay : ComponentBase, IDisposable
             InitDurationInputs();
             ShowStateControlPanel = !ShowStateControlPanel;
         }
+    }
+
+    protected void ToggleKpiChartModal()
+    {
+        ShowKpiChartModal = !ShowKpiChartModal;
     }
 
     protected async Task ApplyDurationAsync()
