@@ -1,0 +1,25 @@
+.modal-backdrop-custom {
+    background-color: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
+}
+
+.tags-section-header {
+    letter-spacing: 0.5px;
+}
+
+.edit-btn-small {
+    font-size: 0.775rem;
+}
+
+.tag-label-micro {
+    font-size: 0.725rem;
+    letter-spacing: 0.5px;
+}
+
+.tag-badge {
+    font-size: 0.75rem;
+}
+
+.tag-empty-text {
+    font-size: 0.8rem;
+}

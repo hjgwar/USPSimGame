@@ -1,0 +1,47 @@
+.judgment-panel-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(2px);
+    z-index: 2050;
+    display: flex;
+    justify-content: flex-end;
+    animation: fadeIn 0.2s ease-out;
+}
+
+.judgment-panel-container {
+    width: 440px;
+    max-width: 90vw;
+    height: 100vh;
+    background-color: #f8fafc;
+    display: flex;
+    flex-direction: column;
+    box-shadow: -4px 0 24px rgba(0, 0, 0, 0.25);
+    animation: slideInRight 0.25s ease-out;
+}
+
+.judgment-panel-header {
+    flex-shrink: 0;
+}
+
+.judgment-panel-body {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.judgment-panel-footer {
+    flex-shrink: 0;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideInRight {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
+}

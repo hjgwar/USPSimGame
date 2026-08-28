@@ -1,0 +1,5 @@
+/* Basemap tile desaturation & contrast enhancement for 2.5D architectural clarity */
+::deep .ol-viewport canvas {
+    filter: contrast(94%) brightness(102%) saturate(75%);
+    transition: filter 0.3s ease;
+}
