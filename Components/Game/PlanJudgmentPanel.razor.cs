@@ -20,6 +20,7 @@ public partial class PlanJudgmentPanel : ComponentBase, IDisposable
     private bool IsLoading { get; set; } = true;
     private PlanApprovalEvaluation? Evaluation { get; set; }
     private List<Team> RequiredTeams { get; set; } = new();
+    private List<Team> OptionalTeams { get; set; } = new();
     private List<PlanTeamJudgment> Judgments { get; set; } = new();
     private USPSimGame.Services.Costing.PlanCostEstimate CostEstimate { get; set; }
 
@@ -60,6 +61,10 @@ public partial class PlanJudgmentPanel : ComponentBase, IDisposable
 
             RequiredTeams = SessionTeams
                 .Where(t => Evaluation.RequiredTeamIds.Contains(t.Id))
+                .ToList();
+
+            OptionalTeams = SessionTeams
+                .Where(t => t.Id != TargetPlan.TeamId && !Evaluation.RequiredTeamIds.Contains(t.Id))
                 .ToList();
         }
         catch (Exception ex)

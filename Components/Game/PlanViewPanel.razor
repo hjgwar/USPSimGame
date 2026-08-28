@@ -78,7 +78,7 @@
                     </div>
 
                     <div class="d-flex flex-wrap gap-1">
-                        @foreach (var team in SessionTeams.Where(t => Evaluation?.RequiredTeamIds.Contains(t.Id) ?? false))
+                        @foreach (var team in SessionTeams.Where(t => t.Id != Plan.TeamId))
                         {
                             var j = Judgments.FirstOrDefault(x => x.TeamId == team.Id);
                             var currentType = j?.Judgment ?? PlanJudgmentType.Undecided;
