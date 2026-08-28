@@ -15,30 +15,34 @@ public class TeamBudgetService : ITeamBudgetService
         _costCalculationService = costCalculationService;
     }
 
+    public async Task ApplyAnnualBudgetRefillAsync(int gameSessionId, int currentMonth)
+    {
+        // January 1st Annual Budget Refill
+        // Every team's InvestmentPointsBalance increases by their AnnualBudgetAllowance,
+        // regardless of the current balance (including negative/debt balances).
+        // This must run BEFORE the KPI snapshot for the same simulated month, so the
+        // increase is visible in that month's snapshot rather than the next one.
+        if (currentMonth != 1) return;
+
+        await using var context = await _dbContextFactory.CreateDbContextAsync();
+        var teams = await context.Teams.Where(t => t.GameSessionId == gameSessionId).ToListAsync();
+        if (!teams.Any()) return;
+
+        foreach (var team in teams)
+        {
+            team.InvestmentPointsBalance += team.AnnualBudgetAllowance;
+        }
+
+        await context.SaveChangesAsync();
+    }
+
     public async Task ProcessMonthlySimulationTickAsync(int gameSessionId, int currentYear, int currentMonth)
     {
         await using var context = await _dbContextFactory.CreateDbContextAsync();
         var teams = await context.Teams.Where(t => t.GameSessionId == gameSessionId).ToListAsync();
         if (!teams.Any()) return;
 
-        // 1. January 1st Annual Budget Refill / Cap
-        // Positive balances reset/capped to 100 max, while negative balances (debt) receive +100 pts allowance
-        if (currentMonth == 1)
-        {
-            foreach (var team in teams)
-            {
-                if (team.InvestmentPointsBalance >= 0)
-                {
-                    team.InvestmentPointsBalance = Math.Min(team.InvestmentPointsBalance, team.AnnualBudgetAllowance);
-                }
-                else
-                {
-                    team.InvestmentPointsBalance += team.AnnualBudgetAllowance;
-                }
-            }
-        }
-
-        // 2. Monthly Expense Deductions for active Implemented Plans
+        // Monthly Expense Deductions for active Implemented Plans
         var activeImplementedPlans = await context.Plans
             .Include(p => p.Judgments)
             .Where(p => p.GameSessionId == gameSessionId && p.State == PlanState.Implemented)
@@ -97,6 +101,27 @@ public class TeamBudgetService : ITeamBudgetService
             team.InvestmentPointsBalance -= investmentShare;
         }
 
+        await context.SaveChangesAsync();
+    }
+
+    public async Task RecordInvestmentPointsSnapshotAsync(int gameSessionId, int simulatedMonth)
+    {
+        await using var context = await _dbContextFactory.CreateDbContextAsync();
+        var teams = await context.Teams.Where(t => t.GameSessionId == gameSessionId).ToListAsync();
+        if (!teams.Any()) return;
+
+        var snapshots = teams.Select(t => new SimulationKpiOutput
+        {
+            GameSessionId = gameSessionId,
+            SimulatedMonth = simulatedMonth,
+            SimulatorKey = "Budget",
+            KpiName = "Investment Points Balance",
+            Value = t.InvestmentPointsBalance,
+            Unit = "pts",
+            TeamId = t.Id
+        });
+
+        context.SimulationKpiOutputs.AddRange(snapshots);
         await context.SaveChangesAsync();
     }
 

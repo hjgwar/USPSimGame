@@ -43,6 +43,7 @@ builder.Services.AddScoped<IPlanApprovalEvaluationService, PlanApprovalEvaluatio
 builder.Services.AddScoped<ICostCalculationService, CostCalculationService>();
 builder.Services.AddScoped<ITeamBudgetService, TeamBudgetService>();
 builder.Services.AddScoped<USPSimGame.Services.Simulation.ISimulationOrchestratorService, USPSimGame.Services.Simulation.SimulationOrchestratorService>();
+builder.Services.AddScoped<USPSimGame.Services.Simulation.IKpiChartDataService, USPSimGame.Services.Simulation.KpiChartDataService>();
 builder.Services.AddSingleton<USPSimGame.Services.Simulation.ISimulatorModule, USPSimGame.Services.Simulation.Modules.SampleEnergySimulatorModule>();
 builder.Services.AddHostedService<USPSimGame.Services.Simulation.GameLoopBackgroundService>();
 builder.Services.AddScoped<CreatorAuthState>();
